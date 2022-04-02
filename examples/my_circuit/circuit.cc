@@ -254,7 +254,8 @@ int main(int argc, char **argv)
   InitWiresTask::register_task();
   InitLocationTask::register_task();
 #endif
-  Runtime::add_registration_callback(update_mappers);
+  // Runtime::add_registration_callback(update_mappers);
+  register_mappers();
 
   return Runtime::start(argc, argv);
 }
