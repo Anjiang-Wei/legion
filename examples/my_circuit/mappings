@@ -1,0 +1,8 @@
+task h.initialize_TG GPU
+task q_out.q_update_stage_1 GPU
+task v.total_visc_flux GPU
+
+region h.initialize_TG interior_blocks ZCMEM
+region q_out.q_update_stage_1 interior_blocks ZCMEM
+region v.total_visc_flux interior_blocks FBMEM
+region v.total_visc_flux vel_grad_part ZCMEM
