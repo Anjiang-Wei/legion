@@ -1,0 +1,9 @@
+task calculate_new_currents GPU
+task distribute_charge GPU
+task update_voltages GPU
+
+region calculate_new_currents rsn ZCMEM
+region calculate_new_currents rgn ZCMEM
+region distribute_charge rsn ZCMEM
+region distribute_charge rgn ZCMEM
+region update_voltages rsn ZCMEM

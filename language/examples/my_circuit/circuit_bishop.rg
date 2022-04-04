@@ -19,46 +19,53 @@
 import "regent"
 import "bishop"
 
-mapper
+-- Compile and link circuit_mapper.cc
+local cmapper
+local cconfig
+do
+  local root_dir = arg[0]:match(".*/") or "./"
 
-$CPUs = processors[isa=x86]
-$GPUs = processors[isa=cuda]
-$HAS_GPUS = $GPUs.size > 0
+  local include_path = ""
+  local include_dirs = terralib.newlist()
+  include_dirs:insert("-I")
+  include_dirs:insert(root_dir)
+  for path in string.gmatch(os.getenv("INCLUDE_PATH"), "[^;]+") do
+    include_path = include_path .. " -I " .. path
+    include_dirs:insert("-I")
+    include_dirs:insert(path)
+  end
 
-task#calculate_new_currents[index=$i],
-task#distribute_charge[index=$i],
-task#update_voltages[index=$i] {
-  target : $HAS_GPUS ? $GPUs[$i % $GPUs.size] : $CPUs[$i % $CPUs.size];
-}
+  local mapper_cc = root_dir .. "circuit_mapper.cc"
+  local mapper_so
+  if os.getenv('OBJNAME') then
+    local out_dir = os.getenv('OBJNAME'):match('.*/') or './'
+    mapper_so = out_dir .. "libcircuit_mapper.so"
+  elseif os.getenv('SAVEOBJ') == '1' then
+    mapper_so = root_dir .. "libcircuit_mapper.so"
+  else
+    mapper_so = os.tmpname() .. ".so" -- root_dir .. "circuit_mapper.so"
+  end
+  local cxx = os.getenv('CXX') or 'c++'
 
-task[isa=cuda and target=$p] region {
-  target : $p.memories[kind=fbmem];
-}
+  local cxx_flags = os.getenv('CXXFLAGS') or ''
+  cxx_flags = cxx_flags .. " -O2 -Wall -Werror"
+  if os.execute('test "$(uname)" = Darwin') == 0 then
+    cxx_flags =
+      (cxx_flags ..
+         " -dynamiclib -single_module -undefined dynamic_lookup -fPIC")
+  else
+    cxx_flags = cxx_flags .. " -shared -fPIC"
+  end
 
-task[isa=x86 and target=$p] region {
-  target : $p.memories[kind=sysmem];
-}
-
-task#calculate_new_currents[isa=cuda and target=$p] region#rsn {
-  target : $p.memories[kind=zcmem];
-}
-
-task#calculate_new_currents[isa=cuda and target=$p] region#rgn {
-  target : $p.memories[kind=zcmem];
-}
-
-task#distribute_charge[isa=cuda and target=$p] region#rsn {
-  target : $p.memories[kind=zcmem];
-}
-
-task#distribute_charge[isa=cuda and target=$p] region#rgn {
-  target : $p.memories[kind=zcmem];
-}
-
-task#update_voltages[isa=cuda and target=$p] region#rsn {
-  target : $p.memories[kind=zcmem];
-}
-
+  local cmd = (cxx .. " " .. cxx_flags .. " " .. include_path .. " " ..
+                 mapper_cc .. " -o " .. mapper_so)
+  if os.execute(cmd) ~= 0 then
+    print("Error: failed to compile " .. mapper_cc)
+    assert(false)
+  end
+  regentlib.linklibrary(mapper_so)
+  cmapper = terralib.includec("circuit_mapper.h", include_dirs)
+  cconfig = terralib.includec("circuit_config.h", include_dirs)
 end
 
 local c = regentlib.c
@@ -665,8 +672,16 @@ end
 
 if os.getenv('SAVEOBJ') == '1' then
   local root_dir = arg[0]:match(".*/") or "./"
-  local link_flags = terralib.newlist({"-lm"})
-  regentlib.saveobj(toplevel, "circuit", "executable", bishoplib.make_entry(), link_flags)
+  local out_dir = (os.getenv('OBJNAME') and os.getenv('OBJNAME'):match('.*/')) or root_dir
+  local link_flags = terralib.newlist({"-L" .. out_dir, "-lcircuit_mapper", "-lm"})
+
+  if os.getenv('STANDALONE') == '1' then
+    os.execute('cp ' .. os.getenv('LG_RT_DIR') .. '/../bindings/regent/' ..
+        regentlib.binding_library .. ' ' .. out_dir)
+  end
+
+  local exe = os.getenv('OBJNAME') or "circuit"
+  regentlib.saveobj(toplevel, exe, "executable", cmapper.register_mappers, link_flags)
 else
-  regentlib.start(toplevel, bishoplib.make_entry())
+  regentlib.start(toplevel, cmapper.register_mappers)
 end
