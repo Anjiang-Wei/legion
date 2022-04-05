@@ -1,0 +1,5 @@
+task calc_dt_hydro CPU
+task adv_pos_full CPU
+task validate_output_sequential CPU
+
+region calc_global_dt dt ZCMEM

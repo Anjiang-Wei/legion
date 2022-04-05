@@ -967,400 +967,465 @@ void generate_mesh_raw(
 /// Mapper
 ///
 
-#define SPMD_SHARD_USE_IO_PROC 0
+#include "mappers/default_mapper.h"
 
-static LegionRuntime::Logger::Category log_pennant("pennant");
+#include <cstring>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <iostream>
+#include <fstream>
 
-class PennantMapper : public DefaultMapper
+using namespace Legion;
+using namespace Legion::Mapping;
+
+static Logger log_mapper("nsmapper");
+
+template <typename T1, typename T2>
+struct PairHash
 {
-public:
-  PennantMapper(MapperRuntime *rt, Machine machine, Processor local,
-                const char *mapper_name,
-                std::vector<Processor>* procs_list,
-                std::vector<Memory>* sysmems_list,
-                std::map<Memory, std::vector<Processor> >* sysmem_local_procs,
-#if SPMD_SHARD_USE_IO_PROC
-                std::map<Memory, std::vector<Processor> >* sysmem_local_io_procs,
-#endif
-                std::map<Processor, Memory>* proc_sysmems,
-                std::map<Processor, Memory>* proc_regmems);
-  virtual void default_policy_rank_processor_kinds(
-                                    MapperContext ctx, const Task &task,
-                                    std::vector<Processor::Kind> &ranking);
-  virtual Processor default_policy_select_initial_processor(
-                                    MapperContext ctx, const Task &task);
-  virtual void default_policy_select_target_processors(
-                                    MapperContext ctx,
-                                    const Task &task,
-                                    std::vector<Processor> &target_procs);
-  virtual LogicalRegion default_policy_select_instance_region(
-                                    MapperContext ctx, Memory target_memory,
-                                    const RegionRequirement &req,
-                                    const LayoutConstraintSet &constraints,
-                                    bool force_new_instances,
-                                    bool meets_constraints);
-  virtual void map_copy(const MapperContext ctx,
-                        const Copy &copy,
-                        const MapCopyInput &input,
-                        MapCopyOutput &output);
-  virtual void map_must_epoch(const MapperContext           ctx,
-                              const MapMustEpochInput&      input,
-                                    MapMustEpochOutput&     output);
-  template<bool IS_SRC>
-  void pennant_create_copy_instance(MapperContext ctx, const Copy &copy,
-                                    const RegionRequirement &req, unsigned index,
-                                    std::vector<PhysicalInstance> &instances);
-private:
-  std::vector<Processor>& procs_list;
-  std::vector<Memory>& sysmems_list;
-  std::map<Memory, std::vector<Processor> >& sysmem_local_procs;
-#if SPMD_SHARD_USE_IO_PROC
-  std::map<Memory, std::vector<Processor> >& sysmem_local_io_procs;
-#endif
-  std::map<Processor, Memory>& proc_sysmems;
-  // std::map<Processor, Memory>& proc_regmems;
+  using VAL = std::pair<T1, T2>;
+  std::size_t operator()(VAL const& pair) const noexcept
+  {
+    return std::hash<T1>{}(pair.first) << 1 ^ std::hash<T2>{}(pair.second);
+  }
 };
 
-PennantMapper::PennantMapper(MapperRuntime *rt, Machine machine, Processor local,
-                             const char *mapper_name,
-                             std::vector<Processor>* _procs_list,
-                             std::vector<Memory>* _sysmems_list,
-                             std::map<Memory, std::vector<Processor> >* _sysmem_local_procs,
-#if SPMD_SHARD_USE_IO_PROC
-                             std::map<Memory, std::vector<Processor> >* _sysmem_local_io_procs,
-#endif
-                             std::map<Processor, Memory>* _proc_sysmems,
-                             std::map<Processor, Memory>* _proc_regmems)
-  : DefaultMapper(rt, machine, local, mapper_name),
-    procs_list(*_procs_list),
-    sysmems_list(*_sysmems_list),
-    sysmem_local_procs(*_sysmem_local_procs),
-#if SPMD_SHARD_USE_IO_PROC
-    sysmem_local_io_procs(*_sysmem_local_io_procs),
-#endif
-    proc_sysmems(*_proc_sysmems)// ,
-    // proc_regmems(*_proc_regmems)
+class NSMapper : public DefaultMapper
 {
-}
+public:
+  NSMapper(MapperRuntime *rt, Machine machine, Processor local, const char *mapper_name);
 
-void PennantMapper::default_policy_rank_processor_kinds(MapperContext ctx,
-                        const Task &task, std::vector<Processor::Kind> &ranking)
+public:
+  static std::string get_policy_file();
+  void parse_policy_file(const std::string &policy_file);
+
+private:
+  Processor select_initial_processor_by_kind(const Task &task, Processor::Kind kind);
+  void validate_processor_mapping(MapperContext ctx, const Task &task, Processor proc);
+  template <typename Handle>
+  void maybe_append_handle_name(const MapperContext ctx,
+                                const Handle &handle,
+                                std::vector<std::string> &names);
+  void get_handle_names(const MapperContext ctx,
+                        const RegionRequirement &req,
+                        std::vector<std::string> &names);
+
+public:
+  virtual Processor default_policy_select_initial_processor(MapperContext ctx,
+                                                            const Task &task);
+  virtual void default_policy_select_target_processors(MapperContext ctx,
+                                                       const Task &task,
+                                                       std::vector<Processor> &target_procs);
+  virtual LogicalRegion default_policy_select_instance_region(MapperContext ctx,
+                                                              Memory target_memory,
+                                                              const RegionRequirement &req,
+                                                              const LayoutConstraintSet &constraints,
+                                                              bool force_new_instances,
+                                                              bool meets_constraints);
+  virtual void map_task(const MapperContext ctx,
+                        const Task &task,
+                        const MapTaskInput &input,
+                        MapTaskOutput &output);
+
+private:
+  std::unordered_map<std::string, Processor::Kind> task_policies;
+  std::unordered_map<TaskID, Processor::Kind> cached_task_policies;
+
+  std::unordered_set<std::string> has_region_policy;
+  using HashFn1 = PairHash<std::string, std::string>;
+  std::unordered_map<std::pair<std::string, std::string>, Memory::Kind, HashFn1> region_policies;
+  using HashFn2 = PairHash<TaskID, uint32_t>;
+  std::unordered_map<std::pair<TaskID, uint32_t>, Memory::Kind, HashFn2> cached_region_policies;
+  std::unordered_map<std::pair<TaskID, uint32_t>, std::string, HashFn2> cached_region_names;
+};
+
+std::string NSMapper::get_policy_file()
 {
-#if SPMD_SHARD_USE_IO_PROC
-  const char* task_name = task.get_task_name();
-  const char* prefix = "shard_";
-  if (strncmp(task_name, prefix, strlen(prefix)) == 0) {
-    // Put shard tasks on IO processors.
-    ranking.resize(5);
-    ranking[0] = Processor::TOC_PROC;
-    ranking[1] = Processor::PROC_SET;
-    ranking[2] = Processor::IO_PROC;
-    ranking[3] = Processor::LOC_PROC;
-    ranking[4] = Processor::PY_PROC;
-  } else {
-#endif
-    ranking.resize(5);
-    ranking[0] = Processor::TOC_PROC;
-    ranking[1] = Processor::PROC_SET;
-    ranking[2] = Processor::LOC_PROC;
-    ranking[3] = Processor::IO_PROC;
-    ranking[4] = Processor::PY_PROC;
-#if SPMD_SHARD_USE_IO_PROC
+  auto args = Runtime::get_input_args();
+  for (auto idx = 0; idx < args.argc; ++idx)
+  {
+    if (strcmp(args.argv[idx], "-mapping") == 0)
+    {
+      if (idx + 1 >= args.argc) break;
+      return args.argv[idx + 1];
+    }
   }
-#endif
+  log_mapper.error("Policy file is missing");
+  exit(-1);
 }
 
-Processor PennantMapper::default_policy_select_initial_processor(
-                                    MapperContext ctx, const Task &task)
+Processor::Kind parse_processor_kind(const std::string &kind_string)
 {
-  if (!task.regions.empty()) {
-    if (task.regions[0].handle_type == SINGULAR) {
-      Color index = runtime->get_logical_region_color(ctx, task.regions[0].region);
-#define NO_SPMD 0
-#if NO_SPMD
-      return procs_list[index % procs_list.size()];
-#else
-      std::vector<Processor> &local_procs =
-        sysmem_local_procs[proc_sysmems[local_proc]];
-      if (local_procs.size() > 1) {
-#define SPMD_RESERVE_SHARD_PROC 0
-#if SPMD_RESERVE_SHARD_PROC
-        return local_procs[(index % (local_procs.size() - 1)) + 1];
-#else
-        return local_procs[index % local_procs.size()];
-#endif
-      } else if (local_procs.size() > 0) { // FIXME: This check seems to be required when using Python processors
-        return local_procs[0];
-      }
-#endif
+  if ("CPU" == kind_string) return Processor::LOC_PROC;
+  else if ("GPU" == kind_string) return Processor::TOC_PROC;
+  else
+  {
+    log_mapper.error(
+      "Unknown processor kind %s (supported kinds: CPU, GPU)",
+      kind_string.c_str());
+    exit(-1);
+  }
+}
+
+Memory::Kind parse_memory_kind(const std::string &kind_string)
+{
+  if ("SYSMEM" == kind_string) return Memory::SYSTEM_MEM;
+  else if ("FBMEM" == kind_string) return Memory::GPU_FB_MEM;
+  else if ("RDMEM" == kind_string) return Memory::REGDMA_MEM;
+  else if ("ZCMEM" == kind_string) return Memory::Z_COPY_MEM;
+  else
+  {
+    log_mapper.error(
+      "Unknown processor kind %s (supported kinds: SYSMEM, FBMEM, RDMEM, ZCMEM)",
+      kind_string.c_str());
+    exit(-1);
+  }
+}
+
+std::string processor_kind_to_string(Processor::Kind kind)
+{
+  switch (kind)
+  {
+    case Processor::LOC_PROC: return "CPU";
+    case Processor::TOC_PROC: return "GPU";
+    default:
+    {
+      assert(false);
+      return "Unknown Kind";
+    }
+  }
+}
+
+std::string memory_kind_to_string(Memory::Kind kind)
+{
+  switch (kind)
+  {
+    case Memory::SYSTEM_MEM: return "SYSMEM";
+    case Memory::GPU_FB_MEM: return "FBMEM";
+    case Memory::REGDMA_MEM: return "RDMEM";
+    case Memory::Z_COPY_MEM: return "ZCMEM";
+    default:
+    {
+      assert(false);
+      return "Unknown Kind";
+    }
+  }
+}
+
+void NSMapper::parse_policy_file(const std::string &policy_file)
+{
+  std::ifstream ifs;
+  ifs.open(policy_file, std::ifstream::in);
+  log_mapper.debug("Policy file: %s", policy_file.c_str());
+
+  while (ifs.good()) {
+    std::string token;
+    ifs >> token;
+    if ("task" == token)
+    {
+      std::string task_name; ifs >> task_name;
+      std::string kind_string; ifs >> kind_string;
+      log_mapper.debug(
+        "Found task policy: map %s to %s", task_name.c_str(), kind_string.c_str());
+      task_policies[task_name] = parse_processor_kind(kind_string);
+    }
+    else if ("region" == token)
+    {
+      std::string task_name; ifs >> task_name;
+      std::string region_name; ifs >> region_name;
+      std::string kind_string; ifs >> kind_string;
+      log_mapper.debug(
+        "Found region policy: map %s.%s to %s",
+        task_name.c_str(), region_name.c_str(), kind_string.c_str());
+      region_policies[std::make_pair(task_name, region_name)] = parse_memory_kind(kind_string);
+      has_region_policy.insert(task_name);
+    }
+    else if (!token.empty())
+    {
+      log_mapper.error("Unknown token %s", token.c_str());
+      exit(-1);
+    }
+  }
+  ifs.close();
+}
+
+Processor NSMapper::select_initial_processor_by_kind(const Task &task, Processor::Kind kind)
+{
+  Processor result;
+  switch (kind)
+  {
+    case Processor::LOC_PROC:
+    {
+      result = local_cpus.front();
+      break;
+    }
+    case Processor::TOC_PROC:
+    {
+      result = !local_gpus.empty() ? local_gpus.front() : local_cpus.front();
+      break;
+    }
+    default:
+    {
+      assert(false);
     }
   }
 
+  auto kind_str = processor_kind_to_string(kind);
+  if (result.kind() != kind)
+    log_mapper.warning(
+      "Unsatisfiable policy: task %s requested %s, which does not exist",
+      task.get_task_name(), kind_str.c_str());
+  else
+    log_mapper.debug(
+      "Task %s is initially mapped to %s",
+      task.get_task_name(), kind_str.c_str()
+    );
+  return result;
+}
+
+void NSMapper::validate_processor_mapping(MapperContext ctx, const Task &task, Processor proc)
+{
+  std::vector<VariantID> variants;
+  runtime->find_valid_variants(ctx, task.task_id, variants, proc.kind());
+  if (variants.empty())
+  {
+    auto kind_str = processor_kind_to_string(proc.kind());
+    log_mapper.error(
+      "Invalid policy: task %s requested %s, but has no valid task variant for the kind",
+      task.get_task_name(), kind_str.c_str());
+    exit(-1);
+  }
+}
+
+Processor NSMapper::default_policy_select_initial_processor(MapperContext ctx, const Task &task)
+{
+  {
+    auto finder = cached_task_policies.find(task.task_id);
+    if (finder != cached_task_policies.end())
+    {
+      auto result = select_initial_processor_by_kind(task, finder->second);
+      validate_processor_mapping(ctx, task, result);
+      return result;
+    }
+  }
+  {
+    auto finder = task_policies.find(task.get_task_name());
+    if (finder != task_policies.end())
+    {
+      auto result = select_initial_processor_by_kind(task, finder->second);
+      validate_processor_mapping(ctx, task, result);
+      cached_task_policies[task.task_id] = result.kind();
+      return result;
+    }
+  }
+  log_mapper.debug(
+    "No processor policy is given for task %s, falling back to the default policy",
+    task.get_task_name());
   return DefaultMapper::default_policy_select_initial_processor(ctx, task);
 }
 
-void PennantMapper::default_policy_select_target_processors(
-                                    MapperContext ctx,
-                                    const Task &task,
-                                    std::vector<Processor> &target_procs)
+void NSMapper::default_policy_select_target_processors(MapperContext ctx,
+                                                       const Task &task,
+                                                       std::vector<Processor> &target_procs)
 {
   target_procs.push_back(task.target_proc);
 }
 
-LogicalRegion PennantMapper::default_policy_select_instance_region(
-                                MapperContext ctx, Memory target_memory,
-                                const RegionRequirement &req,
-                                const LayoutConstraintSet &layout_constraints,
-                                bool force_new_instances,
-                                bool meets_constraints)
+LogicalRegion NSMapper::default_policy_select_instance_region(MapperContext ctx,
+                                                              Memory target_memory,
+                                                              const RegionRequirement &req,
+                                                              const LayoutConstraintSet &constraints,
+                                                              bool force_new_instances,
+                                                              bool meets_constraints)
 {
   return req.region;
 }
 
-//--------------------------------------------------------------------------
-template<bool IS_SRC>
-void PennantMapper::pennant_create_copy_instance(MapperContext ctx,
-                     const Copy &copy, const RegionRequirement &req,
-                     unsigned idx, std::vector<PhysicalInstance> &instances)
-//--------------------------------------------------------------------------
+template <typename Handle>
+void NSMapper::maybe_append_handle_name(const MapperContext ctx,
+                                        const Handle &handle,
+                                        std::vector<std::string> &names)
 {
-  // This method is identical to the default version except that it
-  // chooses an intelligent memory based on the destination of the
-  // copy.
+  const void *result = nullptr;
+  size_t size = 0;
+  if (runtime->retrieve_semantic_information(
+        ctx, handle, LEGION_NAME_SEMANTIC_TAG, result, size, true, true))
+    names.push_back(std::string(static_cast<const char*>(result)));
+}
 
-  // See if we have all the fields covered
-  std::set<FieldID> missing_fields = req.privilege_fields;
-  for (std::vector<PhysicalInstance>::const_iterator it =
-        instances.begin(); it != instances.end(); it++)
+void NSMapper::get_handle_names(const MapperContext ctx,
+                                const RegionRequirement &req,
+                                std::vector<std::string> &names)
+{
+  maybe_append_handle_name(ctx, req.region, names);
+
+  if (runtime->has_parent_logical_partition(ctx, req.region))
   {
-    it->remove_space_fields(missing_fields);
-    if (missing_fields.empty())
-      break;
+    auto parent = runtime->get_parent_logical_partition(ctx, req.region);
+    maybe_append_handle_name(ctx, parent, names);
   }
-  if (missing_fields.empty())
+
+  if (req.region != req.parent)
+    maybe_append_handle_name(ctx, req.parent, names);
+}
+
+void NSMapper::map_task(const MapperContext      ctx,
+                        const Task&              task,
+                        const MapTaskInput&      input,
+                              MapTaskOutput&     output)
+{
+  if (has_region_policy.find(task.get_task_name()) == has_region_policy.end())
+  {
+    log_mapper.debug(
+      "No memory policy is given for task %s, falling back to the default policy",
+      task.get_task_name());
+    DefaultMapper::map_task(ctx, task, input, output);
     return;
-  // If we still have fields, we need to make an instance
-  // We clearly need to take a guess, let's see if we can find
-  // one of our instances to use.
+  }
 
-  // ELLIOTT: Get the remote node here.
-  Color index = runtime->get_logical_region_color(ctx, copy.src_requirements[idx].region);
-// #if SPMD_RESERVE_SHARD_PROC
-//   size_t sysmem_index = index / (std::max(sysmem_local_procs.begin()->second.size() - 1, (size_t)1));
-// #else
-//   size_t sysmem_index = index / sysmem_local_procs.begin()->second.size();
-// #endif
-//   assert(sysmem_index < sysmems_list.size());
-//   Memory target_memory = sysmems_list[sysmem_index];
-  Memory target_memory = default_policy_select_target_memory(ctx,
-                           procs_list[index % procs_list.size()],
-                           req);
-  log_pennant.spew("Building instance for copy of a region with index %u to be in memory %llx",
-                      index, target_memory.id);
-  bool force_new_instances = false;
-  LayoutConstraintID our_layout_id =
-   default_policy_select_layout_constraints(ctx, target_memory,
-                                            req, COPY_MAPPING,
-                                            true/*needs check*/,
-                                            force_new_instances);
-  LayoutConstraintSet creation_constraints =
-              runtime->find_layout_constraints(ctx, our_layout_id);
-  creation_constraints.add_constraint(
-      FieldConstraint(missing_fields,
-                      false/*contig*/, false/*inorder*/));
-  instances.resize(instances.size() + 1);
-  if (!default_make_instance(ctx, target_memory,
-        creation_constraints, instances.back(),
-        COPY_MAPPING, force_new_instances, true/*meets*/, req))
+  Processor::Kind target_kind = task.target_proc.kind();
+  VariantInfo chosen = default_find_preferred_variant(task, ctx,
+                    true/*needs tight bound*/, true/*cache*/, target_kind);
+  output.chosen_variant = chosen.variant;
+  output.task_priority = default_policy_select_task_priority(ctx, task);
+  output.postmap_task = false;
+  default_policy_select_target_processors(ctx, task, output.target_procs);
+
+  if (chosen.is_inner)
   {
-    // If we failed to make it that is bad
-    log_pennant.error("Pennant mapper failed allocation for "
-                   "%s region requirement %d of explicit "
-                   "region-to-region copy operation in task %s "
-                   "(ID %lld) in memory " IDFMT " for processor "
-                   IDFMT ". This means the working set of your "
-                   "application is too big for the allotted "
-                   "capacity of the given memory under the default "
-                   "mapper's mapping scheme. You have three "
-                   "choices: ask Realm to allocate more memory, "
-                   "write a custom mapper to better manage working "
-                   "sets, or find a bigger machine. Good luck!",
-                   IS_SRC ? "source" : "destination", idx,
-                   copy.parent_task->get_task_name(),
-                   copy.parent_task->get_unique_id(),
-		       target_memory.id,
-		       copy.parent_task->current_proc.id);
-    assert(false);
+    log_mapper.debug(
+      "Unsupported variant is chosen for task %s, falling back to the default policy",
+      task.get_task_name());
+    DefaultMapper::map_task(ctx, task, input, output);
+    return;
+  }
+
+  const TaskLayoutConstraintSet &layout_constraints =
+    runtime->find_task_layout_constraints(ctx, task.task_id, output.chosen_variant);
+
+  for (uint32_t idx = 0; idx < task.regions.size(); ++idx)
+  {
+    auto &req = task.regions[idx];
+    if (req.privilege == LEGION_NO_ACCESS || req.privilege_fields.empty()) continue;
+
+    bool found_policy = false;
+    Memory::Kind target_kind = Memory::SYSTEM_MEM; // default
+    Memory target_memory = Memory::NO_MEMORY;
+    std::string region_name;
+
+    auto cache_key = std::make_pair(task.task_id, idx);
+    auto finder = cached_region_policies.find(cache_key);
+    if (finder != cached_region_policies.end())
+    {
+      found_policy = true;
+      target_kind = finder->second;
+      region_name = cached_region_names.find(cache_key)->second;
+    }
+
+    if (!found_policy)
+    {
+      std::vector<std::string> path;
+      get_handle_names(ctx, req, path);
+      for (auto &name : path)
+      {
+        auto finder = region_policies.find(std::make_pair(task.get_task_name(), name));
+        if (finder != region_policies.end())
+        {
+          target_kind = finder->second;
+          found_policy = true;
+          auto key = std::make_pair(task.task_id, idx);
+          cached_region_policies[key] = target_kind;
+          cached_region_names[key] = name;
+          region_name = name;
+          break;
+        }
+      }
+    }
+
+    if (found_policy)
+    {
+      Machine::MemoryQuery visible_memories(machine);
+      visible_memories.has_affinity_to(task.target_proc);
+      visible_memories.only_kind(target_kind);
+      if (visible_memories.count() > 0)
+        target_memory = visible_memories.first();
+    }
+
+    if (target_memory.exists())
+    {
+      auto kind_str = memory_kind_to_string(target_kind);
+      log_mapper.debug(
+          "Region %u of task %s (%s) is mapped to %s",
+          idx, task.get_task_name(), region_name.c_str(), kind_str.c_str());
+    }
+    else
+    {
+      log_mapper.debug(
+        "Unsatisfiable policy: region %u of task %s, falling back to the default policy",
+        idx, task.get_task_name());
+      auto mem_constraint =
+        find_memory_constraint(ctx, task, output.chosen_variant, idx);
+      target_memory =
+        default_policy_select_target_memory(ctx, task.target_proc, req, mem_constraint);
+    }
+
+    auto missing_fields = req.privilege_fields;
+    if (req.privilege == LEGION_REDUCE)
+    {
+      size_t footprint;
+      if (!default_create_custom_instances(ctx, task.target_proc,
+              target_memory, req, idx, missing_fields,
+              layout_constraints, true,
+              output.chosen_instances[idx], &footprint))
+      {
+        default_report_failed_instance_creation(task, idx,
+              task.target_proc, target_memory, footprint);
+      }
+      continue;
+    }
+
+    std::vector<PhysicalInstance> valid_instances;
+
+    for (auto &instance : input.valid_instances[idx])
+      if (instance.get_location() == target_memory)
+        valid_instances.push_back(instance);
+
+    runtime->filter_instances(ctx, task, idx, output.chosen_variant,
+                              valid_instances, missing_fields);
+
+    bool check = runtime->acquire_and_filter_instances(ctx, valid_instances);
+    assert(check);
+
+    output.chosen_instances[idx] = valid_instances;
+
+    if (missing_fields.empty()) continue;
+
+    size_t footprint;
+    if (!default_create_custom_instances(ctx, task.target_proc,
+            target_memory, req, idx, missing_fields,
+            layout_constraints, true,
+            output.chosen_instances[idx], &footprint))
+    {
+      default_report_failed_instance_creation(task, idx,
+              task.target_proc, target_memory, footprint);
+    }
   }
 }
 
-void PennantMapper::map_copy(const MapperContext ctx,
-                             const Copy &copy,
-                             const MapCopyInput &input,
-                             MapCopyOutput &output)
+NSMapper::NSMapper(MapperRuntime *rt, Machine machine, Processor local, const char *mapper_name)
+  : DefaultMapper(rt, machine, local, mapper_name)
 {
-  log_pennant.spew("Pennant mapper map_copy");
-  for (unsigned idx = 0; idx < copy.src_requirements.size(); idx++)
-  {
-    // Use a virtual instance for the source unless source is
-    // restricted or we'd applying a reduction.
-    output.src_instances[idx].clear();
-    if (copy.src_requirements[idx].is_restricted()) {
-      // If it's restricted, just take the instance. This will only
-      // happen inside the shard task.
-      output.src_instances[idx] = input.src_instances[idx];
-      if (!output.src_instances[idx].empty())
-        runtime->acquire_and_filter_instances(ctx,
-                                output.src_instances[idx]);
-    } else if (copy.dst_requirements[idx].privilege == REDUCE) {
-      // Use the default here. This will place the instance on the
-      // current node.
-      default_create_copy_instance<true/*is src*/>(ctx, copy,
-                copy.src_requirements[idx], idx, output.src_instances[idx]);
-    } else {
-      output.src_instances[idx].push_back(
-        PhysicalInstance::get_virtual_instance());
-    }
-
-    // Place the destination instance on the remote node.
-    output.dst_instances[idx].clear();
-    if (!copy.dst_requirements[idx].is_restricted()) {
-      // Call a customized method to create an instance on the desired node.
-      pennant_create_copy_instance<false/*is src*/>(ctx, copy,
-        copy.dst_requirements[idx], idx, output.dst_instances[idx]);
-    } else {
-      // If it's restricted, just take the instance. This will only
-      // happen inside the shard task.
-      output.dst_instances[idx] = input.dst_instances[idx];
-      if (!output.dst_instances[idx].empty())
-        runtime->acquire_and_filter_instances(ctx,
-                                output.dst_instances[idx]);
-    }
-  }
-}
-void PennantMapper::map_must_epoch(const MapperContext           ctx,
-                                   const MapMustEpochInput&      input,
-                                         MapMustEpochOutput&     output)
-{
-  size_t num_nodes = sysmems_list.size();
-  size_t num_tasks = input.tasks.size();
-  size_t num_shards_per_node =
-    num_nodes < input.tasks.size() ? (num_tasks + num_nodes - 1) / num_nodes : 1;
-  std::map<const Task*, size_t> task_indices;
-  for (size_t idx = 0; idx < num_tasks; ++idx) {
-    size_t node_idx = idx / num_shards_per_node;
-    size_t proc_idx = idx % num_shards_per_node;
-    assert(node_idx < sysmems_list.size());
-#if SPMD_SHARD_USE_IO_PROC
-    assert(proc_idx < sysmem_local_io_procs[sysmems_list[node_idx]].size());
-    output.task_processors[idx] = sysmem_local_io_procs[sysmems_list[node_idx]][proc_idx];
-#else
-    assert(proc_idx < sysmem_local_procs[sysmems_list[node_idx]].size());
-    output.task_processors[idx] = sysmem_local_procs[sysmems_list[node_idx]][proc_idx];
-#endif
-
-    task_indices[input.tasks[idx]] = node_idx;
-  }
-
-  for (size_t idx = 0; idx < input.constraints.size(); ++idx) {
-    const MappingConstraint& constraint = input.constraints[idx];
-    int owner_id = -1;
-
-    for (unsigned i = 0; i < constraint.constrained_tasks.size(); ++i) {
-      const RegionRequirement& req =
-        constraint.constrained_tasks[i]->regions[
-          constraint.requirement_indexes[i]];
-      if (req.is_no_access()) continue;
-      assert(owner_id == -1);
-      owner_id = static_cast<int>(i);
-    }
-    assert(owner_id != -1);
-
-    const Task* task = constraint.constrained_tasks[owner_id];
-    const RegionRequirement& req =
-      task->regions[constraint.requirement_indexes[owner_id]];
-    Memory target_memory = sysmems_list[task_indices[task]];
-    LayoutConstraintSet layout_constraints;
-    default_policy_select_constraints(ctx, layout_constraints, target_memory, req);
-    layout_constraints.add_constraint(
-      FieldConstraint(req.privilege_fields, false /*!contiguous*/));
-
-    PhysicalInstance inst;
-    bool created;
-    bool ok = runtime->find_or_create_physical_instance(ctx, target_memory,
-        layout_constraints, std::vector<LogicalRegion>(1, req.region),
-        inst, created, true /*acquire*/);
-    assert(ok);
-    output.constraint_mappings[idx].push_back(inst);
-  }
+  std::string policy_file = get_policy_file();
+  parse_policy_file(policy_file);
 }
 
 static void create_mappers(Machine machine, Runtime *runtime, const std::set<Processor> &local_procs)
 {
-  std::vector<Processor>* procs_list = new std::vector<Processor>();
-  std::vector<Memory>* sysmems_list = new std::vector<Memory>();
-  std::map<Memory, std::vector<Processor> >* sysmem_local_procs =
-    new std::map<Memory, std::vector<Processor> >();
-#if SPMD_SHARD_USE_IO_PROC
-  std::map<Memory, std::vector<Processor> >* sysmem_local_io_procs =
-    new std::map<Memory, std::vector<Processor> >();
-#endif
-  std::map<Processor, Memory>* proc_sysmems = new std::map<Processor, Memory>();
-  std::map<Processor, Memory>* proc_regmems = new std::map<Processor, Memory>();
-
-
-  std::vector<Machine::ProcessorMemoryAffinity> proc_mem_affinities;
-  machine.get_proc_mem_affinity(proc_mem_affinities);
-
-  for (unsigned idx = 0; idx < proc_mem_affinities.size(); ++idx) {
-    Machine::ProcessorMemoryAffinity& affinity = proc_mem_affinities[idx];
-
-    // skip memories with no capacity for creating instances
-    if(affinity.m.capacity() == 0)
-      continue;
-
-    if (affinity.p.kind() == Processor::LOC_PROC ||
-        affinity.p.kind() == Processor::IO_PROC) {
-      if (affinity.m.kind() == Memory::SYSTEM_MEM) {
-        (*proc_sysmems)[affinity.p] = affinity.m;
-        if (proc_regmems->find(affinity.p) == proc_regmems->end())
-          (*proc_regmems)[affinity.p] = affinity.m;
-      }
-      else if (affinity.m.kind() == Memory::REGDMA_MEM)
-        (*proc_regmems)[affinity.p] = affinity.m;
-    }
-  }
-
-  for (std::map<Processor, Memory>::iterator it = proc_sysmems->begin();
-       it != proc_sysmems->end(); ++it) {
-    if (it->first.kind() == Processor::LOC_PROC) {
-      procs_list->push_back(it->first);
-      (*sysmem_local_procs)[it->second].push_back(it->first);
-    }
-#if SPMD_SHARD_USE_IO_PROC
-    else if (it->first.kind() == Processor::IO_PROC) {
-      (*sysmem_local_io_procs)[it->second].push_back(it->first);
-    }
-#endif
-  }
-
-  for (std::map<Memory, std::vector<Processor> >::iterator it =
-        sysmem_local_procs->begin(); it != sysmem_local_procs->end(); ++it)
-    sysmems_list->push_back(it->first);
-
   for (std::set<Processor>::const_iterator it = local_procs.begin();
         it != local_procs.end(); it++)
   {
-    PennantMapper* mapper = new PennantMapper(runtime->get_mapper_runtime(),
-                                              machine, *it, "pennant_mapper",
-                                              procs_list,
-                                              sysmems_list,
-                                              sysmem_local_procs,
-#if SPMD_SHARD_USE_IO_PROC
-                                              sysmem_local_io_procs,
-#endif
-                                              proc_sysmems,
-                                              proc_regmems);
+    NSMapper* mapper = new NSMapper(runtime->get_mapper_runtime(), machine, *it, "ns_mapper");
     runtime->replace_default_mapper(mapper, *it);
   }
 }
