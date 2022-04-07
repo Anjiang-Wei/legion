@@ -86,6 +86,15 @@ private:
   using HashFn2 = PairHash<TaskID, uint32_t>;
   std::unordered_map<std::pair<TaskID, uint32_t>, Memory::Kind, HashFn2> cached_region_policies;
   std::unordered_map<std::pair<TaskID, uint32_t>, std::string, HashFn2> cached_region_names;
+
+  bool has_default_task_policy;
+  Processor::Kind default_task_policy;
+
+  bool has_default_region_policy;
+  std::unordered_map<Processor::Kind, Memory::Kind> default_region_policy;
+
+  bool has_default_region_task_policy;
+  std::unordered_map<std::string, Memory::Kind> default_region_task_policy;
 };
 
 std::string NSMapper::get_policy_file()
@@ -188,6 +197,26 @@ void NSMapper::parse_policy_file(const std::string &policy_file)
         task_name.c_str(), region_name.c_str(), kind_string.c_str());
       region_policies[std::make_pair(task_name, region_name)] = parse_memory_kind(kind_string);
       has_region_policy.insert(task_name);
+    }
+    else if ("taskdefault" == token)
+    {
+      std::string processor_string; ifs >> processor_string;
+      has_default_task_policy = true;
+      default_task_policy = parse_processor_kind(processor_string);
+      log_mapper.debug(
+        "Found default task policy: map to %s", processor_string.c_str());
+    }
+    else if ("regiondefault" == token)
+    {
+      std::string processor_string; ifs >> processor_string;
+      std::string memory_string; ifs >> memory_string;
+      has_default_region_policy = true;
+      Processor::Kind processor_kind = parse_processor_kind(processor_string);
+      default_region_policy[processor_kind] = parse_memory_kind(memory_string);
+    }
+    else if ("regiontaskdefault" == token)
+    {
+
     }
     else if (!token.empty())
     {
