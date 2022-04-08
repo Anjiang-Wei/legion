@@ -1,6 +1,7 @@
-task calculate_new_currents GPU
-task distribute_charge GPU
-task update_voltages GPU
+taskdefault GPU
+
+regiondefault GPU FBMEM
+regiondefault CPU SYSMEM
 
 region calculate_new_currents rsn ZCMEM
 region calculate_new_currents rgn ZCMEM

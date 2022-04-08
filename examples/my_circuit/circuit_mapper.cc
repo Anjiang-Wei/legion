@@ -90,7 +90,6 @@ private:
   bool has_default_task_policy;
   Processor::Kind default_task_policy;
 
-  bool has_default_region_policy;
   std::unordered_map<Processor::Kind, Memory::Kind> default_region_policy;
 
   bool has_default_region_task_policy;
@@ -175,6 +174,9 @@ void NSMapper::parse_policy_file(const std::string &policy_file)
   std::ifstream ifs;
   ifs.open(policy_file, std::ifstream::in);
   log_mapper.debug("Policy file: %s", policy_file.c_str());
+  
+  has_default_task_policy = false;
+  has_default_region_task_policy = false;
 
   while (ifs.good()) {
     std::string token;
@@ -210,13 +212,19 @@ void NSMapper::parse_policy_file(const std::string &policy_file)
     {
       std::string processor_string; ifs >> processor_string;
       std::string memory_string; ifs >> memory_string;
-      has_default_region_policy = true;
       Processor::Kind processor_kind = parse_processor_kind(processor_string);
       default_region_policy[processor_kind] = parse_memory_kind(memory_string);
+      log_mapper.debug(
+        "Found default region policy: map to %s", memory_string.c_str());
     }
     else if ("regiontaskdefault" == token)
     {
-
+      std::string task_name; ifs >> task_name;
+      std::string memory_string; ifs >> memory_string;
+      has_default_region_task_policy = true;
+      default_region_task_policy[task_name] = parse_memory_kind(memory_string);
+      log_mapper.debug(
+        "Found default region-task policy: map %s to %s", task_name.c_str(), memory_string.c_str());
     }
     else if (!token.empty())
     {
@@ -295,6 +303,13 @@ Processor NSMapper::default_policy_select_initial_processor(MapperContext ctx, c
       cached_task_policies[task.task_id] = result.kind();
       return result;
     }
+    else if (has_default_task_policy)
+    {
+      auto result = select_initial_processor_by_kind(task, default_task_policy);
+      validate_processor_mapping(ctx, task, result);
+      cached_task_policies[task.task_id] = result.kind();
+      return result;
+    }
   }
   log_mapper.debug(
     "No processor policy is given for task %s, falling back to the default policy",
@@ -352,7 +367,10 @@ void NSMapper::map_task(const MapperContext      ctx,
                         const MapTaskInput&      input,
                               MapTaskOutput&     output)
 {
-  if (has_region_policy.find(task.get_task_name()) == has_region_policy.end())
+  Processor::Kind target_proc_kind = task.target_proc.kind();
+  
+  if (has_region_policy.find(task.get_task_name()) == has_region_policy.end() 
+      && default_region_policy.find(target_proc_kind) == default_region_policy.end())
   {
     log_mapper.debug(
       "No memory policy is given for task %s, falling back to the default policy",
@@ -361,9 +379,8 @@ void NSMapper::map_task(const MapperContext      ctx,
     return;
   }
 
-  Processor::Kind target_kind = task.target_proc.kind();
   VariantInfo chosen = default_find_preferred_variant(task, ctx,
-                    true/*needs tight bound*/, true/*cache*/, target_kind);
+                    true/*needs tight bound*/, true/*cache*/, target_proc_kind);
   output.chosen_variant = chosen.variant;
   output.task_priority = default_policy_select_task_priority(ctx, task);
   output.postmap_task = false;
@@ -410,13 +427,21 @@ void NSMapper::map_task(const MapperContext      ctx,
         if (finder != region_policies.end())
         {
           target_kind = finder->second;
-          found_policy = true;
-          auto key = std::make_pair(task.task_id, idx);
-          cached_region_policies[key] = target_kind;
-          cached_region_names[key] = name;
-          region_name = name;
-          break;
         }
+        else if (default_region_policy.find(target_proc_kind) != default_region_policy.end())
+        {
+          target_kind = default_region_policy[target_proc_kind];
+        }
+        else
+        {
+          assert(false);
+        }
+        found_policy = true;
+        auto key = std::make_pair(task.task_id, idx);
+        cached_region_policies[key] = target_kind;
+        cached_region_names[key] = name;
+        region_name = name;
+        break;
       }
     }
 
