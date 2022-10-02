@@ -1,0 +1,30 @@
+Task * GPU,CPU; # for any task, run on GPU if supported
+
+Region * * GPU FBMEM; # for any task, any region, if mapped onto GPU, use FBMEM as default
+Region * * CPU SYSMEM;
+
+Region calculate_new_currents rsn GPU ZCMEM; # for $task, $region, if mapped onto $proc_type, specify $mem_type to use
+Region calculate_new_currents rgn GPU ZCMEM;
+Region distribute_charge rsn GPU ZCMEM;
+Region distribute_charge rgn GPU ZCMEM;
+Region update_voltages rsn GPU ZCMEM;
+
+# for $task, $region, $mem_type, specify $list_of_layout_constraints
+Layout * * * SOA C_order; # Other choices: AOS F_order Exact Align==128 Compact
+
+mcpu_init = Machine(CPU); # nodes * processors
+mcpu = mcpu_init.merge(0, 1); # 1-dim processors
+
+mgpu_init = Machine(GPU); # nodes * processors
+mgpu = mgpu_init.merge(0, 1); # 1-dim processors
+
+# m = mgpu.volume > 0 ? mgpu : mcpu; # we can use tenary operator
+m = mcpu; # in this circuit example, all tasks are mapped to CPU though we have GPUs available
+
+def cyclic1d(Task task) {
+    # task.ispace is a n-dim tuple (in this case n=1) indicating launch domain, not used here
+    return m[task.ipoint[0] % m.size[0]]; # return one point in a machine model (or generally, can be a subset of points on the same node)
+}
+
+# specify $task_name(s) and sharding+slicing function
+IndexTaskMap calculate_new_currents,distribute_charge,update_voltages cyclic1d;

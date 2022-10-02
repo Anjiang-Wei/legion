@@ -13,8 +13,8 @@
  * limitations under the License.
  */
 
-#ifndef __CIRCUIT_H__
-#define __CIRCUIT_H__
+#ifndef __DSL__MAPPER_H__
+#define __DSL__MAPPER_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,4 +26,4 @@ void register_mappers();
 }
 #endif
 
-#endif // __CIRCUIT_H__
+#endif // __DSL__MAPPER_H__

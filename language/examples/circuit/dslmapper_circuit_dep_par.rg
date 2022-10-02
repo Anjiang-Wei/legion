@@ -12,11 +12,30 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+--[[
+    Command for running:
+    mpirun ../../regent.py dslmapper_circuit_dep_par.rg -fcuda 1 -ll:gpu 4 -mapping mappings -level nsmapper=debug -logfile mapper%.log
+    Note:
+    -mapping specifies the mapping policy file (called "mappings" in the current directory)
+    -level nsmapper=debug -logfile mapper%.log turns on the logging for debugging purposes (optional)
+    
+    DSL mapper related files (copy them to the same location of rg source file):
+        dsl_mapper.cc, dsl_mapper.h, compiler/*, mappings (to be done)
+    Modification to the original Program:
+        1) Add "Compiler and link" part into the start of their program
+        2) Change the last statement of the program to be regentlib.start(toplevel, cmapper.register_mappers)
+    Write a mapping policy file called "mappings" in the same directory
+    
+    Note:
+    The dsl_mapper.so does not need to be recompiled every time even the mapping policy file changes.
+    To avoid recompilation overhead, export NO_COMPILE=1
+--]]
+
+
 import "regent"
 
--- Compile and link circuit_mapper.cc
+-- Compile and link dsl_mapper.cc
 local cmapper
--- local cconfig
 do
   local root_dir = arg[0]:match(".*/") or "./"
 
@@ -30,20 +49,14 @@ do
     include_dirs:insert(path)
   end
 
-  local mapper_cc = root_dir .. "circuit_mapper.cc"
-  local mapper_so
-  if os.getenv('OBJNAME') then
-    local out_dir = os.getenv('OBJNAME'):match('.*/') or './'
-    mapper_so = out_dir .. "libcircuit_mapper.so"
-  elseif os.getenv('SAVEOBJ') == '1' then
-    mapper_so = root_dir .. "libcircuit_mapper.so"
-  else
-    mapper_so = os.tmpname() .. ".so" -- root_dir .. "circuit_mapper.so"
-  end
+  local mapper_cc = root_dir .. "dsl_mapper.cc"
+  local mapper_so = root_dir .. "dsl_mapper.so"
+  
   local cxx = os.getenv('CXX') or 'c++'
 
   local cxx_flags = os.getenv('CXXFLAGS') or ''
-  cxx_flags = cxx_flags .. " -O2 -Wall -Werror"
+  -- cxx_flags = cxx_flags .. " -O2 -Wall -Werror"
+  cxx_flags = cxx_flags .. " -O2 -w"
   if os.execute('test "$(uname)" = Darwin') == 0 then
     cxx_flags =
       (cxx_flags ..
@@ -54,15 +67,16 @@ do
 
   local cmd = (cxx .. " " .. cxx_flags .. " " .. include_path .. " " ..
                  mapper_cc .. " -o " .. mapper_so)
-  if os.execute(cmd) ~= 0 then
+  if os.getenv("NO_COMPILE") == "1" then
+    print("Do not recompile mapper, using existing " .. mapper_so)
+  elseif os.execute(cmd) ~= 0 then
     print("Error: failed to compile " .. mapper_cc)
     assert(false)
   else
     print("Pass: Succeed to compile " .. mapper_cc .. " into " .. mapper_so)
   end
   regentlib.linklibrary(mapper_so)
-  cmapper = terralib.includec("circuit_mapper.h", include_dirs)
-  -- cconfig = terralib.includec("circuit_config.h", include_dirs)
+  cmapper = terralib.includec("dsl_mapper.h", include_dirs)
 end
 
 
