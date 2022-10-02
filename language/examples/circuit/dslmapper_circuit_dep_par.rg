@@ -14,10 +14,10 @@
 
 --[[
     Command for running:
-    mpirun ../../regent.py dslmapper_circuit_dep_par.rg -fcuda 1 -ll:gpu 4 -mapping mappings -level nsmapper=debug -logfile mapper%.log
+    mpirun ../../regent.py dslmapper_circuit_dep_par.rg -fcuda 1 -ll:gpu 4 -mapping mappings
     Note:
     -mapping specifies the mapping policy file (called "mappings" in the current directory)
-    -level nsmapper=debug -logfile mapper%.log turns on the logging for debugging purposes (optional)
+    optionally, users can append "-level nsmapper=debug -logfile mapper%.log" for debugging purposes
     
     DSL mapper related files (copy them to the same location of rg source file):
         dsl_mapper.cc, dsl_mapper.h, compiler/*, mappings (to be done)
