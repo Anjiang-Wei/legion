@@ -14,6 +14,59 @@
 
 import "regent"
 
+-- Compile and link circuit_mapper.cc
+local cmapper
+-- local cconfig
+do
+  local root_dir = arg[0]:match(".*/") or "./"
+
+  local include_path = ""
+  local include_dirs = terralib.newlist()
+  include_dirs:insert("-I")
+  include_dirs:insert(root_dir)
+  for path in string.gmatch(os.getenv("INCLUDE_PATH"), "[^;]+") do
+    include_path = include_path .. " -I " .. path
+    include_dirs:insert("-I")
+    include_dirs:insert(path)
+  end
+
+  local mapper_cc = root_dir .. "circuit_mapper.cc"
+  local mapper_so
+  if os.getenv('OBJNAME') then
+    local out_dir = os.getenv('OBJNAME'):match('.*/') or './'
+    mapper_so = out_dir .. "libcircuit_mapper.so"
+  elseif os.getenv('SAVEOBJ') == '1' then
+    mapper_so = root_dir .. "libcircuit_mapper.so"
+  else
+    mapper_so = os.tmpname() .. ".so" -- root_dir .. "circuit_mapper.so"
+  end
+  local cxx = os.getenv('CXX') or 'c++'
+
+  local cxx_flags = os.getenv('CXXFLAGS') or ''
+  cxx_flags = cxx_flags .. " -O2 -Wall -Werror"
+  if os.execute('test "$(uname)" = Darwin') == 0 then
+    cxx_flags =
+      (cxx_flags ..
+         " -dynamiclib -single_module -undefined dynamic_lookup -fPIC")
+  else
+    cxx_flags = cxx_flags .. " -shared -fPIC"
+  end
+
+  local cmd = (cxx .. " " .. cxx_flags .. " " .. include_path .. " " ..
+                 mapper_cc .. " -o " .. mapper_so)
+  if os.execute(cmd) ~= 0 then
+    print("Error: failed to compile " .. mapper_cc)
+    assert(false)
+  else
+    print("Pass: Succeed to compile " .. mapper_cc .. " into " .. mapper_so)
+  end
+  regentlib.linklibrary(mapper_so)
+  cmapper = terralib.includec("circuit_mapper.h", include_dirs)
+  -- cconfig = terralib.includec("circuit_config.h", include_dirs)
+end
+
+
+
 local c = regentlib.c
 
 WIRE_SEGMENTS = 3
@@ -220,4 +273,4 @@ task toplevel()
   c.printf("GFLOPS = %7.3f GFLOPS\n", gflops)
   c.printf("simulation complete\n")
 end
-regentlib.start(toplevel)
+regentlib.start(toplevel, cmapper.register_mappers)
