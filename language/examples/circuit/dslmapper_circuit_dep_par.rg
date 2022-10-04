@@ -14,10 +14,13 @@
 
 --[[
     Command for running:
-    mpirun ../../regent.py dslmapper_circuit_dep_par.rg -fcuda 1 -ll:gpu 4 -mapping mappings
+    mpirun ../../regent.py dslmapper_circuit_dep_par.rg -fcuda 1 -ll:gpu 4 -ll:fsize 100 -ll:zsize 100 -mapping mappings
     Note:
     -mapping specifies the mapping policy file (called "mappings" in the current directory)
-    optionally, users can append "-level nsmapper=debug -logfile mapper%.log" for debugging purposes
+    -ll:fsize controls FBMEM size on GPU, -ll:zsize controls ZCMEM
+    For debugging purposes:
+    mpirun ../../regent.py dslmapper_circuit_dep_par.rg -fcuda 1 -ll:gpu 4 -ll:fsize 100 -ll:zsize 100 -mapping mappings 
+    -level mapper=debug -level nsmapper=debug -logfile mapper%.log
     
     DSL mapper related files (copy them to the same location of rg source file):
         dsl_mapper.cc, dsl_mapper.h, compiler/*, mappings (to be done)
@@ -119,6 +122,7 @@ fspace Wire(rpn : region(Node),
 local CktConfig = require("circuit_config")
 local helper = require("circuit_helper_dep")
 
+__demand(__cuda)
 task calculate_new_currents(steps : uint,
                             rpn : region(Node),
                             rsn : region(Node),
@@ -177,6 +181,7 @@ do
   end
 end
 
+__demand(__cuda)
 task distribute_charge(rpn : region(Node),
                        rsn : region(Node),
                        rgn : region(Node),
@@ -192,6 +197,7 @@ do
   end
 end
 
+__demand(__cuda)
 task update_voltages(rn : region(Node))
 where reads(rn.{node_cap, leakage}),
       reads writes(rn.{node_voltage, charge})
