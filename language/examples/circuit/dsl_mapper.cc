@@ -550,11 +550,12 @@ Memory NSMapper::query_best_memory_for_proc(const Processor& proc, const Memory:
   // visible_memories.local_address_space()
   visible_memories.same_address_space_as(proc)
                   .only_kind(mem_target_kind);
-  if (mem_target_kind == Memory::SOCKET_MEM)
+  if (mem_target_kind == Memory::SOCKET_MEM || mem_target_kind == Memory::GPU_FB_MEM)
   {
       visible_memories.best_affinity_to(proc);
   }
   else
+  // else if (mem_target_kind == Memory::Z_COPY_MEM)
   {
       visible_memories.has_affinity_to(proc);
   }
