@@ -659,6 +659,8 @@ void NSMapper::map_task(const MapperContext      ctx,
       std::vector<std::string> path;
       get_handle_names(ctx, req, path);
       log_mapper.debug() << "found_policy = false; path.size() = " << path.size(); // use index for regent
+      for (int i = 0; i < path.size(); i++)
+          log_mapper.debug() << path[i];
       std::vector<Memory::Kind> memory_list = tree_result.query_memory_list(task_name, path, target_proc_kind);
       for (auto &mem_kind: memory_list)
       {

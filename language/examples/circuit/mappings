@@ -1,13 +1,17 @@
 Task * GPU,CPU; # for any task, run on GPU if supported
 
 Region * * GPU FBMEM; # for any task, any region, if mapped onto GPU, use FBMEM as default
-Region * * CPU SYSMEM;
+Region * * CPU SYSMEM; # for this benchmark, it's mapped onto CPU, so it will use SYSMEM as default
 
-Region calculate_new_currents rsn GPU ZCMEM; # for $task, $region, if mapped onto $proc_type, specify $mem_type to use
-Region calculate_new_currents rgn GPU ZCMEM;
-Region distribute_charge rsn GPU ZCMEM;
-Region distribute_charge rgn GPU ZCMEM;
-Region update_voltages rsn GPU ZCMEM;
+# for $task, $region, if mapped onto $proc_type, specify $mem_type to use
+# https://github.com/Anjiang-Wei/legion/blob/circuit_example/language/examples/circuit_bishop.rg#L24-L62 specifies GPU
+# but since this benchmark is actually mapped onto CPU, I use CPU instead (using wildcard * is also fine)
+# for region names, we need to use the region names that are passed in (instead of what is defined in task)
+Region calculate_new_currents pn_shared CPU ZCMEM;
+Region calculate_new_currents pn_ghost CPU ZCMEM;
+Region distribute_charge pn_shared * ZCMEM;
+Region distribute_charge pn_ghost * ZCMEM;
+Region update_voltages pn_equal * ZCMEM;
 
 # for $task, $region, $mem_type, specify $list_of_layout_constraints
 Layout * * * SOA C_order; # Other choices: AOS F_order Exact Align==128 Compact
