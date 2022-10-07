@@ -823,17 +823,21 @@ toplevel:set_task_id(2)
 end -- not use_python_main
 
 if os.getenv('SAVEOBJ') == '1' then
+  print("SAVEOBJ detected")
   local root_dir = arg[0]:match(".*/") or "./"
   local out_dir = (os.getenv('OBJNAME') and os.getenv('OBJNAME'):match('.*/')) or root_dir
   local link_flags = terralib.newlist({"-L" .. out_dir, "-lcircuit_mapper", "-lm"})
 
   if os.getenv('STANDALONE') == '1' then
+    print("STANDALONE detected")
     os.execute('cp ' .. os.getenv('LG_RT_DIR') .. '/../bindings/regent/' ..
         regentlib.binding_library .. ' ' .. out_dir)
   end
 
   local exe = os.getenv('OBJNAME') or "circuit"
   regentlib.saveobj(toplevel, exe, "executable", cmapper.register_mappers, link_flags)
+  print("SAVEOBJ finished")
 else
+  print("SAVEOBJ NOT detected")
   regentlib.start(toplevel, cmapper.register_mappers)
 end
