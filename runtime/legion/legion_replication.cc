@@ -7168,6 +7168,23 @@ namespace Legion {
     }
 
     //--------------------------------------------------------------------------
+    void ReplIndexAttachOp::trigger_ready(void)
+    //--------------------------------------------------------------------------
+    {
+      if (points.empty())
+      {
+        complete_mapping();
+        // Still need to perform our collective with the other shards
+        attach_coregions_collective->perform_collective_async();
+        const RtEvent collective_done =
+          attach_coregions_collective->perform_collective_wait(false/*block*/);
+        complete_execution(collective_done);
+      }
+      else
+        IndexAttachOp::trigger_ready();
+    }
+
+    //--------------------------------------------------------------------------
     void ReplIndexAttachOp::check_point_requirements(
                                           const std::vector<IndexSpace> &spaces)
     //--------------------------------------------------------------------------

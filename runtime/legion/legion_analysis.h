@@ -243,7 +243,9 @@ namespace Legion {
 #ifdef LEGION_SPY
                            RegionTreeID src_tree_id, RegionTreeID dst_tree_id,
 #endif
-                           ApEvent precondition, PredEvent pred_guard) = 0;
+                           ApEvent precondition, PredEvent pred_guard,
+                           LgEvent src_unique, LgEvent dst_unique,
+                           int priority) = 0;
       virtual void record_issue_across(const TraceLocalID &tlid, ApEvent &lhs,
                            ApEvent collective_precondition, 
                            ApEvent copy_precondition,
@@ -280,7 +282,8 @@ namespace Legion {
                            FieldSpace handle,
                            RegionTreeID tree_id,
 #endif
-                           ApEvent precondition, PredEvent pred_guard) = 0;
+                           ApEvent precondition, PredEvent pred_guard,
+                           LgEvent unique_event, int priority) = 0;
       virtual void record_fill_inst(ApEvent lhs, IndexSpaceExpression *expr,
                            const UniqueInst &dst_inst,
                            const FieldMask &fill_mask,
@@ -384,7 +387,8 @@ namespace Legion {
 #ifdef LEGION_SPY
                            RegionTreeID src_tree_id, RegionTreeID dst_tree_id,
 #endif
-                           ApEvent precondition, PredEvent pred_guard);
+                           ApEvent precondition, PredEvent pred_guard,
+                           LgEvent src_unique, LgEvent dst_unique,int priority);
       virtual void record_issue_across(const TraceLocalID &tlid, ApEvent &lhs,
                            ApEvent collective_precondition, 
                            ApEvent copy_precondition,
@@ -420,7 +424,8 @@ namespace Legion {
                            FieldSpace handle,
                            RegionTreeID tree_id,
 #endif
-                           ApEvent precondition, PredEvent pred_guard);
+                           ApEvent precondition, PredEvent pred_guard,
+                           LgEvent unique_event, int priority);
       virtual void record_fill_inst(ApEvent lhs, IndexSpaceExpression *expr,
                            const UniqueInst &dst_inst,
                            const FieldMask &fill_mask,
@@ -615,7 +620,9 @@ namespace Legion {
 #ifdef LEGION_SPY
                           RegionTreeID src_tree_id, RegionTreeID dst_tree_id,
 #endif
-                          ApEvent precondition, PredEvent pred_guard) const
+                          ApEvent precondition, PredEvent pred_guard,
+                          LgEvent src_unique, LgEvent dst_unique,
+                          int priority) const
         {
           sanity_check();
           rec->record_issue_copy(tlid, result, expr, src_fields,
@@ -623,7 +630,8 @@ namespace Legion {
 #ifdef LEGION_SPY
                                  src_tree_id, dst_tree_id,
 #endif
-                                 precondition, pred_guard);
+                                 precondition, pred_guard,
+                                 src_unique, dst_unique, priority);
         }
       inline void record_issue_fill(ApEvent &result,
                           IndexSpaceExpression *expr,
@@ -634,7 +642,8 @@ namespace Legion {
                           FieldSpace handle,
                           RegionTreeID tree_id,
 #endif
-                          ApEvent precondition, PredEvent pred_guard) const
+                          ApEvent precondition, PredEvent pred_guard,
+                          LgEvent unique_event, int priority) const
         {
           sanity_check();
           rec->record_issue_fill(tlid, result, expr, fields, 
@@ -642,7 +651,8 @@ namespace Legion {
 #ifdef LEGION_SPY
                                  fill_uid, handle, tree_id,
 #endif
-                                 precondition, pred_guard);
+                                 precondition, pred_guard,
+                                 unique_event, priority);
         }
       inline void record_issue_across(ApEvent &result,
                                       ApEvent collective_precondition,

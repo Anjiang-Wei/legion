@@ -33,6 +33,8 @@ namespace Legion {
     // Provenance
     /////////////////////////////////////////////////////////////
 
+    /*static*/ const std::string Provenance::no_provenance;
+
     //--------------------------------------------------------------------------
     void Provenance::serialize(Serializer &rez) const
     //--------------------------------------------------------------------------
@@ -1091,7 +1093,8 @@ namespace Legion {
     Operation::Operation(Runtime *rt)
       : runtime(rt), gen(0), unique_op_id(0), context_index(0), 
         outstanding_mapping_references(0), activated(false), hardened(false), 
-        parent_ctx(NULL), mapping_tracker(NULL), commit_tracker(NULL)
+        parent_ctx(NULL), mapping_tracker(NULL), commit_tracker(NULL),
+        provenance(NULL)
     //--------------------------------------------------------------------------
     {
       if (!runtime->resilient_mode)
@@ -1746,12 +1749,13 @@ namespace Legion {
     }
 
     //--------------------------------------------------------------------------
-    void Operation::add_copy_profiling_request(const PhysicalTraceInfo &info,
+    int Operation::add_copy_profiling_request(const PhysicalTraceInfo &info,
                 Realm::ProfilingRequestSet &requests, bool fill, unsigned count)
     //--------------------------------------------------------------------------
     {
       // Should only be called for inherited types
       assert(false);
+      return 0;
     }
 
     //--------------------------------------------------------------------------
@@ -2502,6 +2506,10 @@ namespace Legion {
       rez.serialize(runtime->address_space);
       rez.serialize(unique_op_id);
       rez.serialize(parent_ctx->get_unique_id());
+      if (provenance != NULL)
+        provenance->serialize(rez);
+      else
+        Provenance::serialize_null(rez);
       rez.serialize<bool>(tracing);
     }
 
@@ -3607,6 +3615,7 @@ namespace Legion {
       ready_event = Runtime::create_ap_user_event(NULL);
       profiling_reported = RtUserEvent::NO_RT_USER_EVENT;
       profiling_priority = LG_THROUGHPUT_WORK_PRIORITY;
+      copy_fill_priority = 0;
       outstanding_profiling_requests.store(0);
       outstanding_profiling_reported.store(0);
     }
@@ -4051,6 +4060,17 @@ namespace Legion {
     }
 
     //--------------------------------------------------------------------------
+    const std::string& MapOp::get_provenance_string(void) const
+    //--------------------------------------------------------------------------
+    {
+      Provenance *provenance = get_provenance();
+      if (provenance != NULL)
+        return provenance->provenance;
+      else
+        return Provenance::no_provenance;
+    }
+
+    //--------------------------------------------------------------------------
     void MapOp::check_privilege(void)
     //--------------------------------------------------------------------------
     { 
@@ -4236,6 +4256,7 @@ namespace Legion {
     {
       Mapper::MapInlineInput input;
       Mapper::MapInlineOutput output;
+      output.copy_fill_priority = 0;
       output.profiling_priority = LG_THROUGHPUT_WORK_PRIORITY; 
       output.track_valid_region = true;
       // Invoke the mapper
@@ -4261,6 +4282,7 @@ namespace Legion {
           prepare_for_mapping(valid_instances, input.valid_instances);
       }
       mapper->invoke_map_inline(this, &input, &output);
+      copy_fill_priority = output.copy_fill_priority;
       if (!output.source_instances.empty())
         runtime->forest->physical_convert_sources(this, requirement,
             output.source_instances, source_instances, 
@@ -4458,13 +4480,13 @@ namespace Legion {
     }
 
     //--------------------------------------------------------------------------
-    void MapOp::add_copy_profiling_request(const PhysicalTraceInfo &info,
+    int MapOp::add_copy_profiling_request(const PhysicalTraceInfo &info,
                 Realm::ProfilingRequestSet &requests, bool fill, unsigned count)
     //--------------------------------------------------------------------------
     {
       // Nothing to do if we don't have any profiling requests
       if (profiling_requests.empty())
-        return;
+        return copy_fill_priority;
       OpProfilingResponse response(this, info.index, info.dst_index, fill);
       Realm::ProfilingRequest &request = requests.add_request( 
           runtime->find_utility_group(), LG_LEGION_PROFILING_ID, 
@@ -4473,6 +4495,7 @@ namespace Legion {
             profiling_requests.begin(); it != profiling_requests.end(); it++)
         request.add_measurement((Realm::ProfilingMeasurementID)(*it));
       handle_profiling_update(count);
+      return copy_fill_priority;
     }
 
     //--------------------------------------------------------------------------
@@ -4537,6 +4560,7 @@ namespace Legion {
     {
       pack_local_remote_operation(rez);
       pack_external_mapping(rez, target);
+      rez.serialize(copy_fill_priority);
       rez.serialize<size_t>(profiling_requests.size());
       if (!profiling_requests.empty())
       {
@@ -5224,6 +5248,7 @@ namespace Legion {
       outstanding_profiling_reported.store(0);
       profiling_reported = RtUserEvent::NO_RT_USER_EVENT;
       profiling_priority = LG_THROUGHPUT_WORK_PRIORITY;
+      copy_fill_priority = 0;
       predication_guard = PredEvent::NO_PRED_EVENT;
     }
 
@@ -5664,6 +5689,7 @@ namespace Legion {
       output.dst_indirect_source_instances.resize(
           dst_indirect_requirements.size());
       output.profiling_priority = LG_THROUGHPUT_WORK_PRIORITY;
+      output.copy_fill_priority = 0;
       output.compute_preimages = false;
       atomic_locks.resize(dst_requirements.size());
       if (mapper == NULL)
@@ -5746,6 +5772,7 @@ namespace Legion {
       }
       // Now we can ask the mapper what to do 
       mapper->invoke_map_copy(this, &input, &output);
+      copy_fill_priority = output.copy_fill_priority;
       if (!output.profiling_requests.empty())
       {
         filter_copy_request_kinds(mapper,
@@ -6496,6 +6523,17 @@ namespace Legion {
     }
 
     //--------------------------------------------------------------------------
+    const std::string& CopyOp::get_provenance_string(void) const
+    //--------------------------------------------------------------------------
+    {
+      Provenance *provenance = get_provenance();
+      if (provenance != NULL)
+        return provenance->provenance;
+      else
+        return Provenance::no_provenance;
+    }
+
+    //--------------------------------------------------------------------------
     void CopyOp::check_copy_privileges(const bool permit_projection) const 
     //--------------------------------------------------------------------------
     {
@@ -7105,13 +7143,13 @@ namespace Legion {
     }
 
     //--------------------------------------------------------------------------
-    void CopyOp::add_copy_profiling_request(const PhysicalTraceInfo &info,
+    int CopyOp::add_copy_profiling_request(const PhysicalTraceInfo &info,
                 Realm::ProfilingRequestSet &requests, bool fill, unsigned count)
     //--------------------------------------------------------------------------
     {
       // Nothing to do if we don't have any profiling requests
       if (profiling_requests.empty())
-        return;
+        return copy_fill_priority;
       OpProfilingResponse response(this, info.index, info.dst_index, fill);
       Realm::ProfilingRequest &request = requests.add_request( 
           runtime->find_utility_group(), LG_LEGION_PROFILING_ID, 
@@ -7120,6 +7158,7 @@ namespace Legion {
             profiling_requests.begin(); it != profiling_requests.end(); it++)
         request.add_measurement((Realm::ProfilingMeasurementID)(*it));
       handle_profiling_update(count);
+      return copy_fill_priority;
     }
 
     //--------------------------------------------------------------------------
@@ -7188,6 +7227,7 @@ namespace Legion {
     {
       pack_local_remote_operation(rez);
       pack_external_copy(rez, target);
+      rez.serialize(copy_fill_priority);
       rez.serialize<size_t>(profiling_requests.size());
       if (!profiling_requests.empty())
       {
@@ -10210,6 +10250,17 @@ namespace Legion {
     }
 
     //--------------------------------------------------------------------------
+    const std::string& CloseOp::get_provenance_string(void) const
+    //--------------------------------------------------------------------------
+    {
+      Provenance *provenance = get_provenance();
+      if (provenance != NULL)
+        return provenance->provenance;
+      else
+        return Provenance::no_provenance;
+    }
+
+    //--------------------------------------------------------------------------
     Mappable* CloseOp::get_mappable(void)
     //--------------------------------------------------------------------------
     {
@@ -10854,13 +10905,13 @@ namespace Legion {
     }
 
     //--------------------------------------------------------------------------
-    void PostCloseOp::add_copy_profiling_request(const PhysicalTraceInfo &info,
+    int PostCloseOp::add_copy_profiling_request(const PhysicalTraceInfo &info,
                 Realm::ProfilingRequestSet &requests, bool fill, unsigned count)
     //--------------------------------------------------------------------------
     {
       // Nothing to do if we don't have any profiling requests
       if (profiling_requests.empty())
-        return;
+        return 0;
       OpProfilingResponse response(this, info.index, info.dst_index, fill);
       Realm::ProfilingRequest &request = requests.add_request( 
           runtime->find_utility_group(), LG_LEGION_PROFILING_ID, 
@@ -10869,6 +10920,7 @@ namespace Legion {
             profiling_requests.begin(); it != profiling_requests.end(); it++)
         request.add_measurement((Realm::ProfilingMeasurementID)(*it));
       handle_profiling_update(count);
+      return 0;
     }
 
     //--------------------------------------------------------------------------
@@ -10934,6 +10986,7 @@ namespace Legion {
     {
       pack_local_remote_operation(rez);
       pack_external_close(rez, target);
+      rez.serialize<int>(0);
       rez.serialize<size_t>(profiling_requests.size());
       if (!profiling_requests.empty())
       {
@@ -12180,6 +12233,7 @@ namespace Legion {
       outstanding_profiling_reported.store(0);
       profiling_reported = RtUserEvent::NO_RT_USER_EVENT;
       profiling_priority = LG_THROUGHPUT_WORK_PRIORITY;
+      copy_fill_priority = 0;
     }
 
     //--------------------------------------------------------------------------
@@ -12537,6 +12591,17 @@ namespace Legion {
     }
 
     //--------------------------------------------------------------------------
+    const std::string& AcquireOp::get_provenance_string(void) const
+    //--------------------------------------------------------------------------
+    {
+      Provenance *provenance = get_provenance();
+      if (provenance != NULL)
+        return provenance->provenance;
+      else
+        return Provenance::no_provenance;
+    }
+
+    //--------------------------------------------------------------------------
     const RegionRequirement& AcquireOp::get_requirement(void) const
     //--------------------------------------------------------------------------
     {
@@ -12784,7 +12849,9 @@ namespace Legion {
         Processor exec_proc = parent_ctx->get_executing_processor();
         mapper = runtime->find_mapper(exec_proc, map_id);
       }
+      output.copy_fill_priority = 0;
       mapper->invoke_map_acquire(this, &input, &output);
+      copy_fill_priority = output.copy_fill_priority;
       if (!output.profiling_requests.empty())
       {
         filter_copy_request_kinds(mapper,
@@ -12799,13 +12866,13 @@ namespace Legion {
     }
 
     //--------------------------------------------------------------------------
-    void AcquireOp::add_copy_profiling_request(const PhysicalTraceInfo &info,
+    int AcquireOp::add_copy_profiling_request(const PhysicalTraceInfo &info,
                 Realm::ProfilingRequestSet &requests, bool fill, unsigned count)
     //--------------------------------------------------------------------------
     {
       // Nothing to do if we don't have any profiling requests
       if (profiling_requests.empty())
-        return;
+        return copy_fill_priority;
       OpProfilingResponse response(this, info.index, info.dst_index, fill);
       Realm::ProfilingRequest &request = requests.add_request( 
           runtime->find_utility_group(), LG_LEGION_PROFILING_ID, 
@@ -12814,6 +12881,7 @@ namespace Legion {
             profiling_requests.begin(); it != profiling_requests.end(); it++)
         request.add_measurement((Realm::ProfilingMeasurementID)(*it));
       handle_profiling_update(count);
+      return copy_fill_priority;
     }
 
     //--------------------------------------------------------------------------
@@ -12878,6 +12946,7 @@ namespace Legion {
     {
       pack_local_remote_operation(rez);
       pack_external_acquire(rez, target);
+      rez.serialize(copy_fill_priority);
       rez.serialize<size_t>(profiling_requests.size());
       if (!profiling_requests.empty())
       {
@@ -13085,6 +13154,7 @@ namespace Legion {
       outstanding_profiling_reported.store(0);
       profiling_reported = RtUserEvent::NO_RT_USER_EVENT;
       profiling_priority = LG_THROUGHPUT_WORK_PRIORITY;
+      copy_fill_priority = 0;
     }
 
     //--------------------------------------------------------------------------
@@ -13474,6 +13544,17 @@ namespace Legion {
     }
 
     //--------------------------------------------------------------------------
+    const std::string& ReleaseOp::get_provenance_string(void) const
+    //--------------------------------------------------------------------------
+    {
+      Provenance *provenance = get_provenance();
+      if (provenance != NULL)
+        return provenance->provenance;
+      else
+        return Provenance::no_provenance;
+    }
+
+    //--------------------------------------------------------------------------
     const RegionRequirement& ReleaseOp::get_requirement(void) const
     //--------------------------------------------------------------------------
     {
@@ -13724,7 +13805,9 @@ namespace Legion {
         Processor exec_proc = parent_ctx->get_executing_processor();
         mapper = runtime->find_mapper(exec_proc, map_id);
       }
+      output.copy_fill_priority = 0;
       mapper->invoke_map_release(this, &input, &output);
+      copy_fill_priority = output.copy_fill_priority;
       if (!output.profiling_requests.empty())
       {
         filter_copy_request_kinds(mapper,
@@ -13743,13 +13826,13 @@ namespace Legion {
     }
 
     //--------------------------------------------------------------------------
-    void ReleaseOp::add_copy_profiling_request(const PhysicalTraceInfo &info,
+    int ReleaseOp::add_copy_profiling_request(const PhysicalTraceInfo &info,
                 Realm::ProfilingRequestSet &requests, bool fill, unsigned count)
     //--------------------------------------------------------------------------
     {
       // Nothing to do if we don't have any profiling requests
       if (profiling_requests.empty())
-        return;
+        return copy_fill_priority;
       OpProfilingResponse response(this, info.index, info.dst_index, fill);
       Realm::ProfilingRequest &request = requests.add_request( 
           runtime->find_utility_group(), LG_LEGION_PROFILING_ID, 
@@ -13758,6 +13841,7 @@ namespace Legion {
             profiling_requests.begin(); it != profiling_requests.end(); it++)
         request.add_measurement((Realm::ProfilingMeasurementID)(*it));
       handle_profiling_update(count);
+      return copy_fill_priority;
     }
 
     //--------------------------------------------------------------------------
@@ -13822,6 +13906,7 @@ namespace Legion {
     {
       pack_local_remote_operation(rez);
       pack_external_release(rez, target);
+      rez.serialize(copy_fill_priority);
       rez.serialize<size_t>(profiling_requests.size());
       if (!profiling_requests.empty())
       {
@@ -14696,6 +14781,17 @@ namespace Legion {
       if (parent_task == NULL)
         parent_task = parent_ctx->get_task();
       return parent_task;
+    }
+
+    //--------------------------------------------------------------------------
+    const std::string& MustEpochOp::get_provenance_string(void) const
+    //--------------------------------------------------------------------------
+    {
+      Provenance *provenance = get_provenance();
+      if (provenance != NULL)
+        return provenance->provenance;
+      else
+        return Provenance::no_provenance;
     }
 
     //--------------------------------------------------------------------------
@@ -17324,7 +17420,9 @@ namespace Legion {
                       version_info, valid_instances, map_applied_conditions);
         prepare_for_mapping(valid_instances, input.valid_instances);
       }
+      output.copy_fill_priority = 0;
       mapper->invoke_map_partition(this, &input, &output);
+      copy_fill_priority = output.copy_fill_priority;
       if (!output.source_instances.empty())
         runtime->forest->physical_convert_sources(this, requirement,
             output.source_instances, source_instances, 
@@ -17707,6 +17805,17 @@ namespace Legion {
     }
 
     //--------------------------------------------------------------------------
+    const std::string& DependentPartitionOp::get_provenance_string(void) const
+    //--------------------------------------------------------------------------
+    {
+      Provenance *provenance = get_provenance();
+      if (provenance != NULL)
+        return provenance->provenance;
+      else
+        return Provenance::no_provenance;
+    }
+
+    //--------------------------------------------------------------------------
     Mappable* DependentPartitionOp::get_mappable(void)
     //--------------------------------------------------------------------------
     {
@@ -17739,6 +17848,7 @@ namespace Legion {
       outstanding_profiling_reported.store(0);
       profiling_reported = RtUserEvent::NO_RT_USER_EVENT;
       profiling_priority = LG_THROUGHPUT_WORK_PRIORITY;
+      copy_fill_priority = 0;
     }
 
     //--------------------------------------------------------------------------
@@ -17849,7 +17959,7 @@ namespace Legion {
     }
 
     //--------------------------------------------------------------------------
-    void DependentPartitionOp::add_copy_profiling_request(
+    int DependentPartitionOp::add_copy_profiling_request(
                                            const PhysicalTraceInfo &info,
                                            Realm::ProfilingRequestSet &requests,
                                            bool fill, unsigned count)
@@ -17857,7 +17967,7 @@ namespace Legion {
     {
       // Nothing to do if we don't have any profiling requests
       if (profiling_requests.empty())
-        return;
+        return copy_fill_priority;
       OpProfilingResponse response(this, info.index, info.dst_index, fill);
       Realm::ProfilingRequest &request = requests.add_request( 
           runtime->find_utility_group(), LG_LEGION_PROFILING_ID, 
@@ -17866,6 +17976,7 @@ namespace Legion {
             profiling_requests.begin(); it != profiling_requests.end(); it++)
         request.add_measurement((Realm::ProfilingMeasurementID)(*it));
       handle_profiling_update(count);
+      return copy_fill_priority;
     }
 
     //--------------------------------------------------------------------------
@@ -17932,6 +18043,7 @@ namespace Legion {
       pack_local_remote_operation(rez);
       pack_external_partition(rez, target);
       rez.serialize<PartitionKind>(get_partition_kind());
+      rez.serialize(copy_fill_priority);
       rez.serialize<size_t>(profiling_requests.size());
       if (!profiling_requests.empty())
       {
@@ -18654,6 +18766,17 @@ namespace Legion {
     }
 
     //--------------------------------------------------------------------------
+    const std::string& FillOp::get_provenance_string(void) const
+    //--------------------------------------------------------------------------
+    {
+      Provenance *provenance = get_provenance();
+      if (provenance != NULL)
+        return provenance->provenance;
+      else
+        return Provenance::no_provenance;
+    }
+
+    //--------------------------------------------------------------------------
     std::map<PhysicalManager*,unsigned>*
                                         FillOp::get_acquired_instances_ref(void)
     //--------------------------------------------------------------------------
@@ -18664,11 +18787,12 @@ namespace Legion {
     }
 
     //--------------------------------------------------------------------------
-    void FillOp::add_copy_profiling_request(const PhysicalTraceInfo &info,
+    int FillOp::add_copy_profiling_request(const PhysicalTraceInfo &info,
                 Realm::ProfilingRequestSet &reqeusts, bool fill, unsigned count)
     //--------------------------------------------------------------------------
     {
       // Nothing to do for the moment
+      return 0;
     }
 
     //--------------------------------------------------------------------------
@@ -21017,12 +21141,11 @@ namespace Legion {
     void IndexAttachOp::trigger_ready(void)
     //--------------------------------------------------------------------------
     {
-      std::set<RtEvent> mapped_preconditions;
       std::set<ApEvent> executed_preconditions;
       for (std::vector<PointAttachOp*>::const_iterator it =
             points.begin(); it != points.end(); it++)
       {
-        mapped_preconditions.insert((*it)->get_mapped_event());
+        map_applied_conditions.insert((*it)->get_mapped_event());
         executed_preconditions.insert((*it)->get_completion_event());
         (*it)->trigger_ready();
       }
@@ -21032,7 +21155,7 @@ namespace Legion {
 #endif
       // Record that we are mapped when all our points are mapped
       // and we are executed when all our points are executed
-      complete_mapping(Runtime::merge_events(mapped_preconditions));
+      complete_mapping(Runtime::merge_events(map_applied_conditions));
       ApEvent done = Runtime::merge_events(NULL, executed_preconditions);
       if (!request_early_complete(done))
         complete_execution(Runtime::protect_event(done));
@@ -21898,11 +22021,12 @@ namespace Legion {
     }
 
     //--------------------------------------------------------------------------
-    void DetachOp::add_copy_profiling_request(const PhysicalTraceInfo &info,
+    int DetachOp::add_copy_profiling_request(const PhysicalTraceInfo &info,
                 Realm::ProfilingRequestSet &reqeusts, bool fill, unsigned count)
     //--------------------------------------------------------------------------
     {
       // Nothing to do
+      return 0;
     }
 
     //--------------------------------------------------------------------------
@@ -23291,6 +23415,7 @@ namespace Legion {
         profiling_reports(0)
     //--------------------------------------------------------------------------
     {
+      set_provenance(NULL);
     }
 
     //--------------------------------------------------------------------------
@@ -23322,6 +23447,9 @@ namespace Legion {
         else
           Runtime::trigger_event(profiling_response);
       }
+      Provenance *provenance = get_provenance();
+      if ((provenance != NULL) && provenance->remove_reference())
+        delete provenance;
     }
 
     //--------------------------------------------------------------------------
@@ -23354,6 +23482,11 @@ namespace Legion {
       rez.serialize(source);
       rez.serialize(unique_op_id);
       rez.serialize(parent_ctx->get_unique_id());
+      Provenance *provenance = get_provenance();
+      if (provenance != NULL)
+        provenance->serialize(rez);
+      else
+        Provenance::serialize_null(rez);
       rez.serialize<bool>(tracing);
     }
 
@@ -23369,6 +23502,7 @@ namespace Legion {
       parent_ctx = runtime->find_context(parent_uid, false, &ready);
       if (ready.exists())
         ready_events.insert(ready);
+      set_provenance(Provenance::deserialize(derez));
       derez.deserialize<bool>(tracing);
     }
 
@@ -23377,6 +23511,7 @@ namespace Legion {
                                            std::set<RtEvent> &applied) const
     //--------------------------------------------------------------------------
     {
+      rez.serialize(copy_fill_priority);
       rez.serialize<size_t>(profiling_requests.size());
       if (profiling_requests.empty())
         return;
@@ -23394,6 +23529,7 @@ namespace Legion {
     void RemoteOp::unpack_profiling_requests(Deserializer &derez)
     //--------------------------------------------------------------------------
     {
+      derez.deserialize(copy_fill_priority);
       size_t num_requests;
       derez.deserialize(num_requests);
       if (num_requests == 0)
@@ -23469,13 +23605,13 @@ namespace Legion {
     }
 
     //--------------------------------------------------------------------------
-    void RemoteOp::add_copy_profiling_request(const PhysicalTraceInfo &info,
+    int RemoteOp::add_copy_profiling_request(const PhysicalTraceInfo &info,
                 Realm::ProfilingRequestSet &requests, bool fill, unsigned count)
     //--------------------------------------------------------------------------
     {
       // Nothing to do if we don't have any profiling requests
       if (profiling_requests.empty())
-        return;
+        return copy_fill_priority;
       OpProfilingResponse response(remote_ptr, info.index, info.dst_index,fill);
       // Send the result back to the owner node
       Realm::ProfilingRequest &request = requests.add_request( 
@@ -23485,6 +23621,7 @@ namespace Legion {
             profiling_requests.begin(); it != profiling_requests.end(); it++)
         request.add_measurement((Realm::ProfilingMeasurementID)(*it));
       profiling_reports.fetch_add(count);
+      return copy_fill_priority;
     }
 
     //--------------------------------------------------------------------------
@@ -23699,6 +23836,17 @@ namespace Legion {
     }
 
     //--------------------------------------------------------------------------
+    const std::string& RemoteMapOp::get_provenance_string(void) const
+    //--------------------------------------------------------------------------
+    {
+      Provenance *provenance = get_provenance();
+      if (provenance != NULL)
+        return provenance->provenance;
+      else
+        return Provenance::no_provenance;
+    }
+
+    //--------------------------------------------------------------------------
     const char* RemoteMapOp::get_logging_name(void) const
     //--------------------------------------------------------------------------
     {
@@ -23826,6 +23974,17 @@ namespace Legion {
       if (parent_task == NULL)
         parent_task = parent_ctx->get_task();
       return parent_task;
+    }
+
+    //--------------------------------------------------------------------------
+    const std::string& RemoteCopyOp::get_provenance_string(void) const
+    //--------------------------------------------------------------------------
+    {
+      Provenance *provenance = get_provenance();
+      if (provenance != NULL)
+        return provenance->provenance;
+      else
+        return Provenance::no_provenance;
     }
 
     //--------------------------------------------------------------------------
@@ -23992,6 +24151,17 @@ namespace Legion {
     }
 
     //--------------------------------------------------------------------------
+    const std::string& RemoteCloseOp::get_provenance_string(void) const
+    //--------------------------------------------------------------------------
+    {
+      Provenance *provenance = get_provenance();
+      if (provenance != NULL)
+        return provenance->provenance;
+      else
+        return Provenance::no_provenance;
+    }
+
+    //--------------------------------------------------------------------------
     const char* RemoteCloseOp::get_logging_name(void) const
     //--------------------------------------------------------------------------
     {
@@ -24123,6 +24293,17 @@ namespace Legion {
     }
 
     //--------------------------------------------------------------------------
+    const std::string& RemoteAcquireOp::get_provenance_string(void) const
+    //--------------------------------------------------------------------------
+    {
+      Provenance *provenance = get_provenance();
+      if (provenance != NULL)
+        return provenance->provenance;
+      else
+        return Provenance::no_provenance;
+    }
+
+    //--------------------------------------------------------------------------
     const char* RemoteAcquireOp::get_logging_name(void) const
     //--------------------------------------------------------------------------
     {
@@ -24236,6 +24417,17 @@ namespace Legion {
       if (parent_task == NULL)
         parent_task = parent_ctx->get_task();
       return parent_task;
+    }
+
+    //--------------------------------------------------------------------------
+    const std::string& RemoteReleaseOp::get_provenance_string(void) const
+    //--------------------------------------------------------------------------
+    {
+      Provenance *provenance = get_provenance();
+      if (provenance != NULL)
+        return provenance->provenance;
+      else
+        return Provenance::no_provenance;
     }
 
     //--------------------------------------------------------------------------
@@ -24369,6 +24561,17 @@ namespace Legion {
     }
 
     //--------------------------------------------------------------------------
+    const std::string& RemoteFillOp::get_provenance_string(void) const
+    //--------------------------------------------------------------------------
+    {
+      Provenance *provenance = get_provenance();
+      if (provenance != NULL)
+        return provenance->provenance;
+      else
+        return Provenance::no_provenance;
+    }
+
+    //--------------------------------------------------------------------------
     const char* RemoteFillOp::get_logging_name(void) const
     //--------------------------------------------------------------------------
     {
@@ -24481,6 +24684,17 @@ namespace Legion {
       if (parent_task == NULL)
         parent_task = parent_ctx->get_task();
       return parent_task;
+    }
+
+    //--------------------------------------------------------------------------
+    const std::string& RemotePartitionOp::get_provenance_string(void) const
+    //--------------------------------------------------------------------------
+    {
+      Provenance *provenance = get_provenance();
+      if (provenance != NULL)
+        return provenance->provenance;
+      else
+        return Provenance::no_provenance;
     }
 
     //--------------------------------------------------------------------------
