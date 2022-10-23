@@ -19,6 +19,7 @@ core
 *.bbl
 *.blg
 *.aux
+*.out
 
 legion_defines.h
 realm_defines.h
