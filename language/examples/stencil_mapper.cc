@@ -15,7 +15,10 @@
 
 #include "stencil_mapper.h"
 
+#include "mappers/logging_wrapper.h"
 #include "mappers/default_mapper.h"
+
+#define USE_LOGGING_MAPPER
 
 #define SPMD_SHARD_USE_IO_PROC 1
 
@@ -289,7 +292,11 @@ static void create_mappers(Machine machine, Runtime *runtime, const std::set<Pro
     StencilMapper* mapper = new StencilMapper(runtime->get_mapper_runtime(),
                                               machine, *it, "stencil_mapper",
                                               procs_list);
+#ifdef USE_LOGGING_MAPPER
+    runtime->replace_default_mapper(new Mapping::LoggingWrapper(mapper), *it);
+#else
     runtime->replace_default_mapper(mapper, *it);
+#endif
   }
 }
 

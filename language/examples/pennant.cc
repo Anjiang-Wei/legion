@@ -22,7 +22,10 @@
 #include <map>
 #include <vector>
 
+#include "mappers/logging_wrapper.h"
 #include "mappers/default_mapper.h"
+
+#define USE_LOGGING_MAPPER
 
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -1361,7 +1364,11 @@ static void create_mappers(Machine machine, Runtime *runtime, const std::set<Pro
 #endif
                                               proc_sysmems,
                                               proc_regmems);
+#ifdef USE_LOGGING_MAPPER
+    runtime->replace_default_mapper(new Mapping::LoggingWrapper(mapper), *it);
+#else
     runtime->replace_default_mapper(mapper, *it);
+#endif
   }
 }
 

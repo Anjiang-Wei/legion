@@ -23,10 +23,13 @@
 #include <map>
 #include <vector>
 
+#include "mappers/logging_wrapper.h"
 #include "mappers/default_mapper.h"
 
 using namespace Legion;
 using namespace Legion::Mapping;
+
+#define USE_LOGGING_MAPPER
 
 ///
 /// Sharding Functor
@@ -422,7 +425,11 @@ static void create_mappers(Machine machine, Runtime *runtime, const std::set<Pro
     CircuitMapper* mapper = new CircuitMapper(runtime->get_mapper_runtime(),
                                               machine, *it, "circuit_mapper",
                                               procs_list);
+#ifdef USE_LOGGING_MAPPER
+    runtime->replace_default_mapper(new Mapping::LoggingWrapper(mapper), *it);
+#else
     runtime->replace_default_mapper(mapper, *it);
+#endif
   }
 }
 
