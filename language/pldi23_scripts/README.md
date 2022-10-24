@@ -49,6 +49,8 @@ cp -r circuit.run1 circuit.run1_strong
 (cd circuit.run1_strong && for n in 1 2 4 8 16; do sbatch --nodes $n sbatch_circuit_strong.sh; done)
 ```
 
+# Setup Instructions for Lassen
+
 For this repo, do the following on Lassen:
 ```bash
 git clone https://github.com/Anjiang-Wei/legion.git
