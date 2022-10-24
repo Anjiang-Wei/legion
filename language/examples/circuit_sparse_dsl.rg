@@ -44,20 +44,21 @@ do
     include_dirs:insert(path)
   end
 
-  local mapper_cc = root_dir .. "circuit_mapper.cc"
+  local mapper_cc = root_dir .. "my_mapper.cc"
   local mapper_so
   if os.getenv('OBJNAME') then
     local out_dir = os.getenv('OBJNAME'):match('.*/') or './'
-    mapper_so = out_dir .. "libcircuit_mapper.so"
+    mapper_so = out_dir .. "libcircuit_my_mapper.so"
   elseif os.getenv('SAVEOBJ') == '1' then
-    mapper_so = root_dir .. "libcircuit_mapper.so"
+    mapper_so = root_dir .. "libcircuit_my_mapper.so"
   else
-    mapper_so = os.tmpname() .. ".so" -- root_dir .. "circuit_mapper.so"
+    mapper_so = os.tmpname() .. ".so" -- root_dir .. "circuit_my_mapper.so"
   end
   local cxx = os.getenv('CXX') or 'c++'
 
   local cxx_flags = os.getenv('CXXFLAGS') or ''
-  cxx_flags = cxx_flags .. " -O2 -Wall -Werror"
+  -- cxx_flags = cxx_flags .. " -O2 -Wall -Werror"
+  cxx_flags = cxx_flags .. " -O2 -w"
   if os.execute('test "$(uname)" = Darwin') == 0 then
     cxx_flags =
       (cxx_flags ..
@@ -68,12 +69,20 @@ do
 
   local cmd = (cxx .. " " .. cxx_flags .. " " .. include_path .. " " ..
                  mapper_cc .. " -o " .. mapper_so)
-  if os.execute(cmd) ~= 0 then
+  if os.getenv("NO_COMPILE") == "1" then
+    print("Do not recompile mapper, using existing " .. mapper_so)
+  elseif os.execute(cmd) ~= 0 then
     print("Error: failed to compile " .. mapper_cc)
     assert(false)
+  else
+    print("Pass: Succeed to compile " .. mapper_cc .. " into " .. mapper_so)
   end
+  -- if os.execute(cmd) ~= 0 then
+  --  print("Error: failed to compile " .. mapper_cc)
+  --  assert(false)
+  -- end
   regentlib.linklibrary(mapper_so)
-  cmapper = terralib.includec("circuit_mapper.h", include_dirs)
+  cmapper = terralib.includec("my_mapper.h", include_dirs)
   cconfig = terralib.includec("circuit_config.h", include_dirs)
 end
 
