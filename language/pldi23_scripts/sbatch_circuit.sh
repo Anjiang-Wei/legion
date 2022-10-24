@@ -2,6 +2,8 @@
 #SBATCH -c 40
 #SBATCH -p gpu
 
+# https://github.com/StanfordLegion/legion/blob/papers/index-launch-sc21/language/sc21_scripts/sbatch_circuit.sh
+
 root_dir="$PWD"
 
 export LD_LIBRARY_PATH="$PWD"
