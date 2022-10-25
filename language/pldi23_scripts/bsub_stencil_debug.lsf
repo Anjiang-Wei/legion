@@ -32,7 +32,7 @@ for i in $power; do
   ny=$(( 2 ** (i/2) ))
   for r in 0; do
     echo "Running $n""x1_r$r"" ($n = $nx * $ny)..."
-    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil.idx" -nx $(( nx * 30000 * 2 )) -ny $(( ny * 30000 * 2 )) -ntx $(( nx * 2 )) -nty $(( ny * 2 )) -tsteps 50 -tprune 30 -hl:sched 1024 -ll:gpu 1 -ll:util 1 -ll:bgwork 2 -ll:csize 15000 -ll:fsize 15000  -ll:rsize 512 -ll:gsize 0 -level 5 -dm:replicate 1 -dm:same_address_space -dm:memoize -lg:no_fence_elision -lg:parallel_replay 2 -mapping "$root_dir/stencil_mappings" -level mapper=debug -level nsmapper=debug -logfile dsl_mapper%.txt | tee out_"$n"x1_r"$r".log
+    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil.idx" -nx $(( nx * 30000 * 2 )) -ny $(( ny * 30000 * 2 )) -ntx $(( nx * 2 )) -nty $(( ny * 2 )) -tsteps 50 -tprune 30 -hl:sched 1024 -ll:gpu 4 -ll:util 1 -ll:bgwork 2 -ll:csize 15000 -ll:fsize 15000  -ll:rsize 512 -ll:gsize 0 -level 5 -dm:replicate 1 -dm:same_address_space -dm:memoize -lg:no_fence_elision -lg:parallel_replay 2 -mapping "$root_dir/stencil_mappings" -level mapper=debug -level nsmapper=debug -logfile dsl_mapper%.txt | tee out_"$n"x1_r"$r".log
   done
 done
 
@@ -47,7 +47,7 @@ for i in $power; do
   ny=$(( 2 ** (i/2) ))
   for r in 0; do
     echo "Running $n""x1_r$r"" ($n = $nx * $ny)..."
-    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil.noidx" -nx $(( nx * 30000 * 2 )) -ny $(( ny * 30000 * 2 )) -ntx $(( nx * 2 )) -nty $(( ny * 2 )) -tsteps 50 -tprune 30 -hl:sched 1024 -ll:gpu 1 -ll:util 1 -ll:bgwork 2 -ll:csize 15000 -ll:fsize 15000  -ll:rsize 512 -ll:gsize 0 -level 5 -dm:replicate 1 -dm:same_address_space -dm:memoize -lg:no_fence_elision -lg:parallel_replay 2 -level mapper=debug -logfile correct_mapper%.txt | tee out_"$n"x1_r"$r".log
+    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil.noidx" -nx $(( nx * 30000 * 2 )) -ny $(( ny * 30000 * 2 )) -ntx $(( nx * 2 )) -nty $(( ny * 2 )) -tsteps 50 -tprune 30 -hl:sched 1024 -ll:gpu 4 -ll:util 1 -ll:bgwork 2 -ll:csize 15000 -ll:fsize 15000  -ll:rsize 512 -ll:gsize 0 -level 5 -dm:replicate 1 -dm:same_address_space -dm:memoize -lg:no_fence_elision -lg:parallel_replay 2 -level mapper=debug -logfile correct_mapper%.txt | tee out_"$n"x1_r"$r".log
   done
 done
 
