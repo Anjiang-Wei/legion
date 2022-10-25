@@ -22,13 +22,13 @@ git clone https://github.com/Anjiang-Wei/legion.git
 cd legion/language
 # take a look at pldi23_scripts/setup.sh and try to run it with CC and CXX correctly setup
 ./pldi23_scripts/build_circuit.sh circuit.run1
-cd circuit.run1 && for n in 1 2 4 8 16; do sbatch --nodes $n bsub_circuit.lsf; done
+cd circuit.run1 && for n in 1 2 4 8 16; do bsub --nodes $n bsub_circuit.lsf; done
 
 ./pldi23_scripts/build_stencil.sh stencil.run1
-cd stencil.run1 && for n in 1 2 4 8 16; do sbatch --nodes $n bsub_stencil.lsf; done
+cd stencil.run1 && for n in 1 2 4 8 16; do bsub --nodes $n bsub_stencil.lsf; done
 
 ./pldi23_scripts/build_pennant.sh pennant.run1
-cd pennant.run1 && for n in 1 2 4 8 16; do sbatch --nodes $n bsub_pennant.lsf; done
+cd pennant.run1 && for n in 1 2 4 8 16; do bsub --nodes $n bsub_pennant.lsf; done
 
 # dcr_idx is DSL mapper, dcr_noidx is the original mapper
 # to analyze results (e.g., use bsub_circuit.sh):
