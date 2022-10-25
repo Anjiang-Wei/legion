@@ -14,6 +14,34 @@ are also archived under the tag
 in the main Legion repository. The latter is assumed in the
 instructions below, but either method may be used to obtain the files.
 
+# Setup Instructions for Lassen
+
+For this repo, do the following on Lassen:
+```bash
+git clone https://github.com/Anjiang-Wei/legion.git
+cd legion/language
+# take a look at pldi23_scripts/setup.sh and try to run it with CC and CXX correctly setup
+./pldi23_scripts/build_circuit.sh circuit.run1
+cd circuit.run1 && for n in 1 2 4 8 16; do sbatch --nodes $n bsub_circuit.lsf; done
+
+./pldi23_scripts/build_stencil.sh stencil.run1
+cd stencil.run1 && for n in 1 2 4 8 16; do sbatch --nodes $n bsub_stencil.lsf; done
+
+./pldi23_scripts/build_pennant.sh pennant.run1
+cd pennant.run1 && for n in 1 2 4 8 16; do sbatch --nodes $n bsub_pennant.lsf; done
+
+# dcr_idx is DSL mapper, dcr_noidx is the original mapper
+# to analyze results (e.g., use bsub_circuit.sh):
+cd circuit.run1
+../pldi23_scripts/parse_results.py
+
+# for performance debugging, starting from 1 node
+cd circuit.run1
+sbatch --nodes 1 bsub_circuit_debug.lsf
+# compare mapping logs: sharding, slicing, created instances
+python3 ../pldi23_scripts/diff.py dcr_idx/dsl_mapper0.txt dcr_noidx/correct_mapper0.txt | less
+```
+
 # Setup Instructions for Piz Daint
 
 Put the following in `~/.bashrc`:
@@ -47,26 +75,6 @@ cp -r circuit.run1 circuit.run1_strong
 (cd circuit.run1 && for n in 1 2 4 8 16; do sbatch --nodes $n sbatch_circuit.sh; done)
 (cd stencil.run1_strong && for n in 1 2 4 8 16; do sbatch --nodes $n sbatch_stencil_strong.sh; done)
 (cd circuit.run1_strong && for n in 1 2 4 8 16; do sbatch --nodes $n sbatch_circuit_strong.sh; done)
-```
-
-# Setup Instructions for Lassen
-
-For this repo, do the following on Lassen:
-```bash
-git clone https://github.com/Anjiang-Wei/legion.git
-cd legion/language
-# take a look at pldi23_scripts/setup.sh and try to run it with CC and CXX correctly setup
-./pldi23_scripts/build_circuit.sh circuit.run1
-./pldi23_scripts/build_stencil.sh stencil.run1
-cd circuit.run1 && for n in 1 2 4 8 16; do sbatch --nodes $n bsub_circuit.sh; done
-cd stencil.run1 && for n in 1 2 4 8 16; do sbatch --nodes $n bsub_stencil.sh; done
-# dcr_idx is DSL mapper, dcr_noidx is the original mapper
-# to analyze results (e.g., use bsub_circuit.sh):
-cd circuit.run1
-../pldi23_scripts/parse_results.py
-# to compare mapping (e.g., use bsub_circuit_debug.sh instead)
-cd circuit.run1
-python3 ../pldi23_scripts/diff.py dcr_idx/dsl_mapper0.txt dcr_noidx/correct_mapper0.txt | less
 ```
 
 Feel free to run larger node counts after the small node count results
