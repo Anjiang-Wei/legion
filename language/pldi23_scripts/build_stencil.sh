@@ -14,5 +14,5 @@ cd "$1"
 USE_FOREIGN=0 SAVEOBJ=1 STANDALONE=1 OBJNAME=./stencil.idx $root_dir/../regent.py $root_dir/../examples/stencil_fast_dsl.rg -fflow 0 -fopenmp 0 -foverride-demand-cuda 1 -fcuda 1 -fcuda-offline 1 -fcuda-arch volta -findex-launch 1 -ffuture 0
 USE_FOREIGN=0 SAVEOBJ=1 STANDALONE=1 OBJNAME=./stencil.noidx $root_dir/../regent.py $root_dir/../examples/stencil_fast.rg   -fflow 0 -fopenmp 0 -foverride-demand-cuda 1 -fcuda 1 -fcuda-offline 1 -fcuda-arch volta -findex-launch 1 -ffuture 0
 
-cp $root_dir/*_stencil*.{sh,lsf} .
-cp $root_dir/stencil_mappings .
+cp -v $root_dir/*_stencil*.{sh,lsf} .
+cp -v $root_dir/stencil_mappings .
