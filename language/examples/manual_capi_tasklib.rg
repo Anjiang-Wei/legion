@@ -1,4 +1,4 @@
--- Copyright 2022 Stanford University
+-- Copyright 2021 Stanford University
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -19,22 +19,10 @@
 
 local tasklib = {}
 
-local ffi = require("ffi")
-local dlfcn = terralib.includec("dlfcn.h")
-local function dlopen_library(library_name)
-  -- Right now we do this globally and do not attempt to unload
-  -- libraries (and really, there is no safe way to do so because
-  -- LuaJIT and LLVM will both get unloaded before we're ready)
-  local ok = dlfcn.dlopen(library_name, bit.bor(dlfcn.RTLD_LAZY, dlfcn.RTLD_GLOBAL))
-  if ffi.cast("intptr_t", ok) == 0LL then
-    assert(false, "dlopen failed: " .. tostring(dlfcn.dlerror()))
-  end
-end
-
 if os.execute("bash -c \"[ `uname` == 'Darwin' ]\"") == 0 then
-  dlopen_library("libregent.dylib")
+  terralib.linklibrary("libregent.dylib")
 else
-  dlopen_library("libregent.so")
+  terralib.linklibrary("libregent.so")
 end
 
 local c = terralib.includecstring([[
@@ -45,6 +33,7 @@ local c = terralib.includecstring([[
 ]])
 tasklib.c = c
 
+local dlfcn = terralib.includec("dlfcn.h")
 local terra legion_has_llvm_support() : bool
   return (dlfcn.dlsym([&opaque](0), "legion_runtime_register_task_variant_llvmir") ~= [&opaque](0))
 end

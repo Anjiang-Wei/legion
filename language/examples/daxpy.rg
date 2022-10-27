@@ -1,4 +1,4 @@
--- Copyright 2022 Stanford University, NVIDIA Corporation
+-- Copyright 2021 Stanford University, NVIDIA Corporation
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 
 import "regent"
 
-local format = require("std/format")
+local c = regentlib.c
 
 struct point { x : double, y : double, z : double }
 
@@ -39,7 +39,7 @@ end
 
 task main()
 
-  format.println("Running Daxpy...")
+  c.printf("Running Daxpy...\n")
 
   var chunks = 4
 
@@ -57,7 +57,7 @@ task main()
     check(part[i])
   end
 
-  format.println("Done!")
+  c.printf("Done!\n")
 end
 
 regentlib.start(main)

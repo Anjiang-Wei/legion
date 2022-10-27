@@ -1,4 +1,4 @@
--- Copyright 2022 Stanford University
+-- Copyright 2021 Stanford University
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -23,16 +23,11 @@
 
 import "regent"
 
-local format = require("std/format")
-
 local common = require("stencil_common")
-
-local gpuhelper = require("regent/gpu/helper")
-local default_foreign = gpuhelper.check_gpu_available() and '0' or '1'
 
 local DTYPE = double
 local RADIUS = 2
-local USE_FOREIGN = (os.getenv('USE_FOREIGN') or default_foreign) == '1'
+local USE_FOREIGN = (os.getenv('USE_FOREIGN') or '0') == '1'
 
 local use_python_main = rawget(_G, "stencil_use_python_main") == true
 
@@ -147,8 +142,6 @@ fspace point {
 }
 
 fspace timestamp {
-  init_start : int64,
-  init_stop : int64,
   start : int64,
   stop : int64,
 }
@@ -459,7 +452,6 @@ task increment(private : region(ispace(int2d), point),
                ym : region(ispace(int2d), point),
                yp : region(ispace(int2d), point),
                times : region(ispace(int1d), timestamp),
-               init_ts : bool,
                print_ts : bool)
 where reads writes(private.input, xm.input, xp.input, ym.input, yp.input, times) do
   [make_increment_interior(private, exterior)]
@@ -468,11 +460,8 @@ where reads writes(private.input, xm.input, xp.input, ym.input, yp.input, times)
   for i in ym do i.input += 1 end
   for i in yp do i.input += 1 end
 
-  var t = c.legion_get_current_time_in_micros()
-  if init_ts then
-    for x in times do x.init_stop = t end
-  end
   if print_ts then
+    var t = c.legion_get_current_time_in_micros()
     for x in times do x.stop = t end
   end
 end
@@ -483,37 +472,24 @@ task check(private : region(ispace(int2d), point),
 where reads(private.{input, output}) do
   var expect_in = init + tsteps
   var expect_out = init
-  var num_input_failed : int64 = 0
   for i in interior do
     if private[i].input ~= expect_in then
-      if num_input_failed == 0 then
-        format.println("input ({},{}): {.3} should be {}",
-                       i.x, i.y, private[i].input, expect_in)
-      end
-      num_input_failed += 1
+      c.printf("input (%lld,%lld): %.3f should be %lld\n",
+               i.x, i.y, private[i].input, expect_in)
     end
   end
-  var num_output_failed : int64 = 0
   for i in interior do
     if private[i].output ~= expect_out then
-      if num_output_failed == 0 then
-        format.println("output ({},{}): {.3} should be {}",
-                       i.x, i.y, private[i].output, expect_out)
-      end
-      num_output_failed += 1
+      c.printf("output (%lld,%lld): %.3f should be %lld\n",
+               i.x, i.y, private[i].output, expect_out)
+      break
     end
   end
-  if num_input_failed > 0 then
-    format.println("total number of bad input entries: {}",
-                   num_input_failed)
-  end
-  if num_output_failed > 0 then
-    format.println("total number of bad output entries: {}",
-                   num_output_failed)
-  end
-  regentlib.assert(num_input_failed == 0, "test failed: input mismatch")
-  regentlib.assert(num_output_failed == 0, "test failed: output mismatch")
-  format.println("check completed successfully")
+  -- for i in interior do
+  --   regentlib.assert(private[i].input == expect_in, "test failed")
+  --   regentlib.assert(private[i].output == expect_out, "test failed")
+  -- end
+  -- c.printf("check completed successfully\n")
 end
 
 task fill_(r : region(ispace(int2d), point), v : DTYPE)
@@ -529,33 +505,22 @@ task read_config()
   return common.read_config()
 end
 
-task begin_init(times : region(ispace(int1d), timestamp))
-where writes(times) do
-  var t = c.legion_get_current_time_in_micros()
-  for x in times do x.init_start = t end
-end
-
 task get_elapsed(all_times : region(ispace(int1d), timestamp))
 where reads(all_times) do
-  var init_start = [int64:max()]
-  var init_stop = [int64:min()]
   var start = [int64:max()]
   var stop = [int64:min()]
 
   for t in all_times do
-    init_start min= t.init_start
-    init_stop max= t.init_stop
     start min= t.start
     stop max= t.stop
   end
 
-  return { init_time = 1e-6 * (init_stop - init_start), sim_time = 1e-6 * (stop - start) }
+  return 1e-6 * (stop - start)
 end
 
-task print_time(color : int, init_time : double, sim_time : double)
+task print_time(color : int, sim_time : double)
   if color == 0 then
-    format.println("INIT TIME = {7.3} s", init_time)
-    format.println("ELAPSED TIME = {7.3} s", sim_time)
+    c.printf("ELAPSED TIME = %7.3f s\n", sim_time)
   end
 end
 
@@ -575,17 +540,6 @@ task main()
   var nt2 = nt.x*nt.y
   var tiles = ispace(int1d, nt2)
 
-  var times = region(ispace(int1d, nt2), timestamp)
-  var p_times = partition(equal, times, ispace(int1d, nt2))
-  fill(times.{init_start, init_stop, start, stop}, 0)
-
-  __fence(__execution, __block)
-  __demand(__index_launch)
-  for i in tiles do
-    begin_init(p_times[i])
-  end
-  __fence(__execution, __block)
-
   var points = region(grid, point)
   var private = make_private_partition(points, tiles, n, nt, radius)
   var interior = make_interior_partition(points, tiles, n, nt, radius)
@@ -603,6 +557,11 @@ task main()
   var pxp_out = [make_ghost_x_partition(true)](xp, tiles, n, nt, radius, 0)
   var pym_out = [make_ghost_y_partition(true)](ym, tiles, n, nt, radius, 0)
   var pyp_out = [make_ghost_y_partition(true)](yp, tiles, n, nt, radius, 0)
+
+  var times = region(ispace(int1d, nt2), timestamp)
+  var p_times = partition(equal, times, ispace(int1d, nt2))
+
+  fill(times.{start, stop}, 0)
 
   fill(points.{input, output}, init)
   fill(xm.{input, output}, init)
@@ -645,17 +604,17 @@ task main()
       end
       -- __demand(__index_launch)
       for i in tiles do
-        increment(private[i], exterior[i], pxm_out[i], pxp_out[i], pym_out[i], pyp_out[i], p_times[i], t == 0, t == tsteps - tprune - 1)
+        increment(private[i], exterior[i], pxm_out[i], pxp_out[i], pym_out[i], pyp_out[i], p_times[i], t == tsteps - tprune - 1)
       end
     end
 
-    for i in tiles do
+    for i = 0, nt2 do
       check(private[i], interior[i], tsteps, init)
     end
   end
 
-  var { init_time, sim_time } = get_elapsed(times)
-  for i = 0, nt2 do print_time(i, init_time, sim_time) end
+  var sim_time = get_elapsed(times)
+  for i = 0, nt2 do print_time(i, sim_time) end
 end
 
 else -- not use_python_main

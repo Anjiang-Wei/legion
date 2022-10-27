@@ -1,4 +1,4 @@
--- Copyright 2022 Stanford University
+-- Copyright 2021 Stanford University
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -21,8 +21,6 @@ import "regent"
 
 assert(regentlib.config["separate"], "test requires separate compilation")
 
-local format = require("std/format")
-
 struct fs {
   x : int
   y : int
@@ -35,7 +33,7 @@ where reads writes(r.{x, y}), reads(r.z) end
 
 task other_regent_task(r : region(ispace(int1d), fs), s : region(ispace(int1d), fs))
 where reads writes(r.{x, y}, s.z), reads(r.z, s.x), reduces+(s.y) do
-  format.println("Task with two region requirements")
+  regentlib.c.printf("Task with two region requirements\n")
   my_regent_task(r, 3, 4, false)
 end
 

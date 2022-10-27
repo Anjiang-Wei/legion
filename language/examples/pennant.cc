@@ -1,4 +1,4 @@
-/* Copyright 2022 Stanford University
+/* Copyright 2021 Stanford University
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -993,6 +993,11 @@ public:
                                     MapperContext ctx,
                                     const Task &task,
                                     std::vector<Processor> &target_procs);
+  virtual Memory default_policy_select_target_memory(
+                                MapperContext ctx,
+                                Processor target_proc,
+                                const RegionRequirement &req,
+                                MemoryConstraint mc = MemoryConstraint());
   virtual LogicalRegion default_policy_select_instance_region(
                                     MapperContext ctx, Memory target_memory,
                                     const RegionRequirement &req,
@@ -1105,6 +1110,31 @@ void PennantMapper::default_policy_select_target_processors(
                                     std::vector<Processor> &target_procs)
 {
   target_procs.push_back(task.target_proc);
+}
+
+Memory PennantMapper::default_policy_select_target_memory(MapperContext ctx,
+                                                          Processor target_proc,
+                                                          const RegionRequirement &req,
+                                                          MemoryConstraint mc)
+{
+  if (target_proc.kind() != Processor::TOC_PROC ||
+      !runtime->has_parent_logical_partition(ctx, req.region))
+    return DefaultMapper::default_policy_select_target_memory(ctx, target_proc, req);
+  LogicalRegion parent = runtime->get_parent_logical_region(ctx,
+      runtime->get_parent_logical_partition(ctx, req.region));
+  if (!runtime->has_parent_logical_partition(ctx, parent))
+    return DefaultMapper::default_policy_select_target_memory(ctx, target_proc, req);
+  DomainPoint color = runtime->get_logical_region_color_point(ctx, parent);
+  if (color[0] > 0)
+  {
+    Machine::MemoryQuery visible_memories(machine);
+    visible_memories.has_affinity_to(target_proc);
+    visible_memories.only_kind(Memory::Z_COPY_MEM);
+    assert(visible_memories.count() > 0);
+    return *visible_memories.begin();
+  }
+  else
+    return DefaultMapper::default_policy_select_target_memory(ctx, target_proc, req, mc);
 }
 
 LogicalRegion PennantMapper::default_policy_select_instance_region(
@@ -1314,11 +1344,6 @@ static void create_mappers(Machine machine, Runtime *runtime, const std::set<Pro
 
   for (unsigned idx = 0; idx < proc_mem_affinities.size(); ++idx) {
     Machine::ProcessorMemoryAffinity& affinity = proc_mem_affinities[idx];
-
-    // skip memories with no capacity for creating instances
-    if(affinity.m.capacity() == 0)
-      continue;
-
     if (affinity.p.kind() == Processor::LOC_PROC ||
         affinity.p.kind() == Processor::IO_PROC) {
       if (affinity.m.kind() == Memory::SYSTEM_MEM) {

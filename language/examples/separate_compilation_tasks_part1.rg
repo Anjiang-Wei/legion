@@ -1,4 +1,4 @@
--- Copyright 2022 Stanford University
+-- Copyright 2021 Stanford University
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -19,11 +19,9 @@
 
 import "regent"
 
-assert(regentlib.config["separate"], "test requires separate compilation")
-
-local format = require("std/format")
-
 local SAME_ADDRESS_SPACE = 4 -- (1 << 2)
+
+assert(regentlib.config["separate"], "test requires separate compilation")
 
 struct fs {
   x : int
@@ -33,7 +31,7 @@ struct fs {
 
 task my_regent_task(r : region(ispace(int1d), fs), x : int, y : double, z : bool)
 where reads writes(r.{x, y}), reads(r.z) do
-  format.println("Hello from Regent! (values {} {e} {})", x, y, z)
+  regentlib.c.printf("Hello from Regent! (values %d %e %d)\n", x, y, z)
 end
 my_regent_task:set_mapper_id(0) -- default mapper
 my_regent_task:set_mapping_tag_id(SAME_ADDRESS_SPACE)

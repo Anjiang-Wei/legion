@@ -1,4 +1,4 @@
--- Copyright 2022 Stanford University
+-- Copyright 2021 Stanford University
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -14,14 +14,12 @@
 
 import "regent"
 
-local format = require("std/format")
-
 local c = regentlib.c
 
 task hello()
   var args = c.legion_runtime_get_input_args()
   regentlib.assert(args.argc > 0, "no args")
-  format.println("hello world from {}", args.argv[0])
+  c.printf("hello world from %s\n", args.argv[0])
 end
 
 task main()
