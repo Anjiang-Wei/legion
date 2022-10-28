@@ -22,3 +22,6 @@ core
 
 legion_defines.h
 realm_defines.h
+language/gasnet/
+language/llvm/
+language/terra.build/
