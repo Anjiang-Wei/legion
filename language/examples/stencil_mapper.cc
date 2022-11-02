@@ -16,6 +16,7 @@
 #include "stencil_mapper.h"
 
 #include "mappers/default_mapper.h"
+#include "dsl_mapper.cc"
 
 #define SPMD_SHARD_USE_IO_PROC 1
 
@@ -27,7 +28,7 @@ using namespace Legion::Mapping;
 ///
 
 enum ShardingFunctorIDs {
-  SID_LINEAR = 1,
+  SID_LINEAR = 2022,
 };
 
 class LinearShardingFunctor : public ShardingFunctor {
@@ -363,8 +364,62 @@ void StencilMapper::stencil_create_copy_instance(MapperContext ctx,
   }
 }
 
-static void create_mappers(Machine machine, Runtime *runtime, const std::set<Processor> &local_procs)
+static void create_mappers2(Machine machine, Runtime *runtime, const std::set<Processor> &local_procs)
 {
+  // log_mapper.debug("Inside create_mappers local_procs.size() = %ld", local_procs.size());
+  bool use_logging_wrapper = false;
+  bool use_dsl_mapper = false;
+  auto args = Runtime::get_input_args();
+  NSMapper::backpressure = false; // never use backpressure for circuit
+  for (auto idx = 0; idx < args.argc; ++idx)
+  {
+    if (strcmp(args.argv[idx], "-wrapper") == 0)
+    {
+      use_logging_wrapper = true;
+    }
+    // todo: in the final public-use version, remove this
+    if (strcmp(args.argv[idx], "-tm:enable_backpressure") == 0)
+    {
+      NSMapper::backpressure = true;
+    }
+    if (strcmp(args.argv[idx], "-dslmapper") == 0)
+    {
+      use_dsl_mapper = true;
+    }
+  }
+  if (use_dsl_mapper)
+  {
+    for (std::set<Processor>::const_iterator it = local_procs.begin();
+        it != local_procs.end(); it++)
+    {
+      NSMapper* mapper = NULL;
+      if (it == local_procs.begin())
+      {
+        mapper = new NSMapper(runtime->get_mapper_runtime(), machine, *it, "ns_mapper", true);
+        mapper->register_user_sharding_functors(runtime);
+        // todo: change back to this in final version
+        // backpressure = (mapper->tree_result.task2limit.size() > 0);
+      }
+      else
+      {
+        mapper = new NSMapper(runtime->get_mapper_runtime(), machine, *it, "ns_mapper", false);
+      }
+      if (use_logging_wrapper)
+      {
+        runtime->replace_default_mapper(new Mapping::LoggingWrapper(mapper), (NSMapper::backpressure ? (Processor::NO_PROC) : (*it)));
+      }
+      else
+      {
+        runtime->replace_default_mapper(mapper, (NSMapper::backpressure ? (Processor::NO_PROC) : (*it)));
+      }
+      if (NSMapper::backpressure)
+      {
+        break;
+      }
+    }
+    return;
+  }
+
   std::vector<Processor>* procs_list = new std::vector<Processor>();
 
   Machine::ProcessorQuery procs_query(machine);
@@ -379,14 +434,21 @@ static void create_mappers(Machine machine, Runtime *runtime, const std::set<Pro
     StencilMapper* mapper = new StencilMapper(runtime->get_mapper_runtime(),
                                               machine, *it, "stencil_mapper",
                                               procs_list);
-    runtime->replace_default_mapper(mapper, *it);
+    if (use_logging_wrapper)
+    {
+      runtime->replace_default_mapper(new Mapping::LoggingWrapper(mapper), *it);
+    }
+    else
+    {
+      runtime->replace_default_mapper(mapper, *it);
+    }
   }
 }
 
-void register_mappers()
+void register_mappers2()
 {
   LinearShardingFunctor *sharding_functor = new LinearShardingFunctor();
   Runtime::preregister_sharding_functor(SID_LINEAR, sharding_functor);
 
-  Runtime::add_registration_callback(create_mappers);
+  Runtime::add_registration_callback(create_mappers2);
 }

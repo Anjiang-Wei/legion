@@ -20,7 +20,7 @@
 extern "C" {
 #endif
 
-void register_mappers();
+void register_mappers2();
 
 #ifdef __cplusplus
 }

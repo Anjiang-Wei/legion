@@ -113,7 +113,8 @@ do
   local cxx = os.getenv('CXX') or 'c++'
 
   local cxx_flags = os.getenv('CXXFLAGS') or ''
-  cxx_flags = cxx_flags .. " -O2 -Wall -Werror"
+  -- cxx_flags = cxx_flags .. " -O2 -Wall -Werror"
+  cxx_flags = cxx_flags .. " -O2 -Wall"
   if map_locally then cxx_flags = cxx_flags .. " -DMAP_LOCALLY " end
   if os.execute('test "$(uname)" = Darwin') == 0 then
     cxx_flags =
@@ -638,7 +639,7 @@ if os.getenv('SAVEOBJ') == '1' then
   end
 
   local exe = os.getenv('OBJNAME') or "stencil"
-  regentlib.saveobj(main, exe, "executable", cmapper.register_mappers, link_flags)
+  regentlib.saveobj(main, exe, "executable", cmapper.register_mappers2, link_flags)
 else
-  regentlib.start(main, cmapper.register_mappers)
+  regentlib.start(main, cmapper.register_mappers2)
 end
