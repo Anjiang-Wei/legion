@@ -35,6 +35,7 @@ for n in $numnodes; do
   for (( r=1; r <= ${repeat}; r++)); do
     echo "Running $n""x${numgpus}_r${r}"
     jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/circuit" -npp 5000 -wpp 20000 -l 50 -p $(( $n * 40 )) $oricmd | tee out_"$n"x"${numgpus}"_r"$r".log
+    LEGION_BACKTRACE=1 jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/circuit" -npp 5000 -wpp 20000 -l 50 -p $(( $n * 40 )) $oricmd
     jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/circuit" -npp 5000 -wpp 20000 -l 50 -p $(( $n * 40 )) $ori_wrapper
     jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/circuit" -npp 5000 -wpp 20000 -l 50 -p $(( $n * 40 )) $ori_prof
   done
@@ -49,6 +50,7 @@ for n in $numnodes; do
   for (( r=1; r <= ${repeat}; r++)); do
     echo "Running $n""x${numgpus}_r${r}"
     jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/circuit" -npp 5000 -wpp 20000 -l 50 -p $(( $n * 40 )) $dslcmd | tee out_"$n"x"${numgpus}"_r"$r".log
+    LEGION_BACKTRACE=1 jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/circuit" -npp 5000 -wpp 20000 -l 50 -p $(( $n * 40 )) $dslcmd
     jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/circuit" -npp 5000 -wpp 20000 -l 50 -p $(( $n * 40 )) $dsl_wrapper
     jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/circuit" -npp 5000 -wpp 20000 -l 50 -p $(( $n * 40 )) $dsl_prof
   done

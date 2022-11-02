@@ -41,6 +41,7 @@ for i in $power; do
   for (( r=1; r <= ${repeat}; r++)); do
     echo "Running $n""x${numgpus}_r${r}"
     jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * 30000 * 1 )) -ny $(( ny * 30000 * 1 )) -ntx $(( nx * 1 )) -nty $(( ny * 1 )) $oricmd | tee out_"$n"x"${numgpus}"_r"$r".log
+    LEGION_BACKTRACE=1 jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * 30000 * 1 )) -ny $(( ny * 30000 * 1 )) -ntx $(( nx * 1 )) -nty $(( ny * 1 )) $oricmd
     jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * 30000 * 1 )) -ny $(( ny * 30000 * 1 )) -ntx $(( nx * 1 )) -nty $(( ny * 1 )) $ori_wrapper
     jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * 30000 * 1 )) -ny $(( ny * 30000 * 1 )) -ntx $(( nx * 1 )) -nty $(( ny * 1 )) $ori_prof
   done
@@ -55,6 +56,7 @@ for n in $numnodes; do
   for (( r=1; r <= ${repeat}; r++)); do
     echo "Running $n""x${numgpus}_r${r}"
     jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * 30000 * 1 )) -ny $(( ny * 30000 * 1 )) -ntx $(( nx * 1 )) -nty $(( ny * 1 )) $dslcmd | tee out_"$n"x"${numgpus}"_r"$r".log
+    LEGION_BACKTRACE=1 jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * 30000 * 1 )) -ny $(( ny * 30000 * 1 )) -ntx $(( nx * 1 )) -nty $(( ny * 1 )) $dslcmd
     jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * 30000 * 1 )) -ny $(( ny * 30000 * 1 )) -ntx $(( nx * 1 )) -nty $(( ny * 1 )) $dsl_wrapper
     jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * 30000 * 1 )) -ny $(( ny * 30000 * 1 )) -ntx $(( nx * 1 )) -nty $(( ny * 1 )) $dsl_prof
   done
