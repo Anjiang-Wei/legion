@@ -19,6 +19,7 @@ def parse_content(path):
         content = f.read()
         match = re.search(_content_re, content)
         if match is None:
+            print(f"Error parsing {path}")
             return ('ERROR',)
         return match.groups()
 
