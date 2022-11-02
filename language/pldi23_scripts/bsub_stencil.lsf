@@ -22,8 +22,8 @@ oricmd_nolevel=" -tsteps 50 -tprune 30 -hl:sched 1024 -ll:gpu ${numgpus} -ll:uti
 dslcmd=$oricmd" -dslmapper -mapping $root_dir/stencil_mappings "
 dslcmd_nolevel=$oricmd_nolevel" -dslmapper -mapping $root_dir/stencil_mappings "
 
-ori_wrapper=$oricmd_nolevel" -wrapper -level mapper=debug -logfile oriwrapper_${numnodes}_${numgpus}_%.wrapperlog "
-dsl_wrapper=$dslcmd_nolevel" -wrapper -level mapper=debug nsmapper=debug -logfile dslwrapper_${numnodes}_${numgpus}_%.wrapperlog "
+ori_wrapper=$oricmd_nolevel" -wrapper -level mapper=debug -logfile oriwrapper_${numnodes}_${numgpus}_%.wrapper "
+dsl_wrapper=$dslcmd_nolevel" -wrapper -level mapper=debug nsmapper=debug -logfile dslwrapper_${numnodes}_${numgpus}_%.wrapper "
 
 ori_prof=$oricmd" -lg:prof 1 lg:prof_logfile oriprof_stencil_${numnodes}_${numgpus}_%.gz "
 dsl_prof=$dslcmd" -lg:prof 1 lg:prof_logfile dslprof_stencil_${numnodes}_${numgpus}_%.gz "
