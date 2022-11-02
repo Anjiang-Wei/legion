@@ -1,0 +1,32 @@
+Task * GPU,CPU; # for any task, run on GPU if supported
+
+Region * * GPU FBMEM; # for any task, any region, if mapped onto GPU, use FBMEM as default
+Region * * CPU SYSMEM; # if mapped onto CPU, use SYSMEM as default
+
+# for $task, $region, if mapped onto $proc_type, specify $mem_type to use
+# https://github.com/Anjiang-Wei/legion/blob/circuit_example/language/examples/circuit_bishop.rg#L24-L62
+# for region names, we need to use the region names that are passed in (instead of what is defined in task)
+Region calculate_new_currents rp_shared GPU ZCMEM;
+Region calculate_new_currents rp_ghost GPU ZCMEM; # if the task is not mapped to GPU, it won't take effect
+Region distribute_charge rp_shared GPU ZCMEM;
+Region distribute_charge rp_ghost GPU ZCMEM;
+Region update_voltages rp_shared GPU ZCMEM;
+
+# for $task, $region, $mem_type, specify $list_of_layout_constraints
+Layout * * * SOA C_order; # Other choices: AOS F_order Exact Align==128 Compact
+
+mcpu_init = Machine(CPU); # nodes * processors
+mcpu = mcpu_init.merge(0, 1); # 1-dim processors
+
+mgpu_init = Machine(GPU); # nodes * processors
+mgpu = mgpu_init.merge(0, 1); # 1-dim processors
+
+m = mgpu.volume > 0 ? mgpu : mcpu; # we can use tenary operator
+
+def cyclic1d(Task task) {
+    # task.ispace is a n-dim tuple (in this case n=1) indicating launch domain, not used here
+    return m[task.ipoint[0] % m.size[0]]; # return one point in a machine model (or generally, can be a subset of points on the same node)
+}
+
+# specify $task_name(s) and sharding+slicing function
+IndexTaskMap calculate_new_currents,distribute_charge,update_voltages cyclic1d;
