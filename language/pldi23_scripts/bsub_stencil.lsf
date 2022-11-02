@@ -1,0 +1,64 @@
+#!/bin/bash
+
+numnodes=$(( ($LSB_DJOB_NUMPROC - 1) / 40))
+numgpus=4
+
+echo Num nodes: $numnodes
+echo Job id: $LSB_JOBID
+
+module load gcc/7.3.1
+module load cmake/3.14.5
+module load cuda/11.7.0
+
+root_dir="$PWD"
+export LD_LIBRARY_PATH="$PWD"
+
+repeat=2
+
+# export LEGION_BACKTRACE=1
+oricmd=" -tsteps 50 -tprune 30 -hl:sched 1024 -ll:gpu ${numgpus} -ll:util 1 -ll:bgwork 2 -ll:csize 15000 -ll:fsize 15000  -ll:rsize 512 -ll:gsize 0 -level 5 -dm:replicate 1 -dm:same_address_space -dm:memoize -lg:no_fence_elision -lg:parallel_replay 2 "
+oricmd_nolevel=" -tsteps 50 -tprune 30 -hl:sched 1024 -ll:gpu ${numgpus} -ll:util 1 -ll:bgwork 2 -ll:csize 15000 -ll:fsize 15000  -ll:rsize 512 -ll:gsize 0 -dm:replicate 1 -dm:same_address_space -dm:memoize -lg:no_fence_elision -lg:parallel_replay 2 "
+
+dslcmd=$oricmd" -dslmapper -mapping $root_dir/stencil_mappings "
+dslcmd_nolevel=$oricmd_nolevel" -dslmapper -mapping $root_dir/stencil_mappings "
+
+ori_wrapper=$oricmd_nolevel" -wrapper -level mapper=debug -logfile oriwrapper_${numnodes}_${numgpus}_%.wrapperlog "
+dsl_wrapper=$dslcmd_nolevel" -wrapper -level mapper=debug nsmapper=debug -logfile dslwrapper_${numnodes}_${numgpus}_%.wrapperlog "
+
+ori_prof=$oricmd" -lg:prof 1 lg:prof_logfile oriprof_stencil_${numnodes}_${numgpus}_%.gz "
+dsl_prof=$dslcmd" -lg:prof 1 lg:prof_logfile dslprof_stencil_${numnodes}_${numgpus}_%.gz "
+
+nodes=$numnodes
+power=$(echo "l($nodes)/l(2)" | bc -l | xargs printf '%.0f\n')
+
+if [[ ! -d ori ]]; then mkdir ori; fi
+pushd ori
+
+for i in $power; do
+  n=$(( 2 ** i))
+  nx=$(( 2 ** ((i+1)/2) ))
+  ny=$(( 2 ** (i/2) ))
+  for (( r=1; r <= ${repeat}; r++)); do
+    echo "Running $n""x${numgpus}_r${r}"
+    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * 30000 * 2 )) -ny $(( ny * 30000 * 2 )) -ntx $(( nx * 2 )) -nty $(( ny * 2 )) $oricmd | tee out_"$n"x"${numgpus}"_r"$r".log
+    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * 30000 * 2 )) -ny $(( ny * 30000 * 2 )) -ntx $(( nx * 2 )) -nty $(( ny * 2 )) $ori_wrapper
+    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * 30000 * 2 )) -ny $(( ny * 30000 * 2 )) -ntx $(( nx * 2 )) -nty $(( ny * 2 )) $ori_prof
+  done
+done
+
+popd
+
+if [[ ! -d dsl ]]; then mkdir dsl; fi
+pushd dsl
+
+for n in $numnodes; do
+  for (( r=1; r <= ${repeat}; r++)); do
+    echo "Running $n""x${numgpus}_r${r}"
+    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * 30000 * 2 )) -ny $(( ny * 30000 * 2 )) -ntx $(( nx * 2 )) -nty $(( ny * 2 )) $dslcmd | tee out_"$n"x"${numgpus}"_r"$r".log
+    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * 30000 * 2 )) -ny $(( ny * 30000 * 2 )) -ntx $(( nx * 2 )) -nty $(( ny * 2 )) $dsl_wrapper
+    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * 30000 * 2 )) -ny $(( ny * 30000 * 2 )) -ntx $(( nx * 2 )) -nty $(( ny * 2 )) $dsl_prof
+  done
+done
+
+popd
+echo "bsub_stencil.lsf finishes!"
