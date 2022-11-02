@@ -475,7 +475,14 @@ static void create_mappers2(Machine machine, Runtime *runtime, const std::set<Pr
     CircuitMapper* mapper = new CircuitMapper(runtime->get_mapper_runtime(),
                                               machine, *it, "circuit_mapper",
                                               procs_list);
-    runtime->replace_default_mapper(mapper, *it);
+    if (use_logging_wrapper)
+    {
+      runtime->replace_default_mapper(new Mapping::LoggingWrapper(mapper), *it);
+    }
+    else
+    {
+      runtime->replace_default_mapper(mapper, *it);
+    }
   }
 }
 
