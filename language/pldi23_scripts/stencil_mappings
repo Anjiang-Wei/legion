@@ -13,7 +13,7 @@ Region distribute_charge rp_ghost GPU ZCMEM;
 Region update_voltages rp_shared GPU ZCMEM;
 
 # for $task, $region, $mem_type, specify $list_of_layout_constraints
-Layout * * * SOA C_order; # Other choices: AOS F_order Exact Align==128 Compact
+Layout * * * SOA F_order; # Other choices: AOS F_order Exact Align==128 Compact
 
 mcpu_init = Machine(CPU); # nodes * processors
 mcpu = mcpu_init.merge(0, 1); # 1-dim processors
