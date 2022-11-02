@@ -56,7 +56,8 @@ do
   local cxx = os.getenv('CXX') or 'c++'
 
   local cxx_flags = os.getenv('CXXFLAGS') or ''
-  cxx_flags = cxx_flags .. " -O2 -Wall -Werror"
+  -- cxx_flags = cxx_flags .. " -O2 -Wall -Werror"
+  cxx_flags = cxx_flags .. " -O2 -Wall"
   if os.execute('test "$(uname)" = Darwin') == 0 then
     cxx_flags =
       (cxx_flags ..
@@ -807,7 +808,7 @@ if os.getenv('SAVEOBJ') == '1' then
   end
 
   local exe = os.getenv('OBJNAME') or "circuit"
-  regentlib.saveobj(toplevel, exe, "executable", cmapper.register_mappers, link_flags)
+  regentlib.saveobj(toplevel, exe, "executable", cmapper.register_mappers2, link_flags)
 else
-  regentlib.start(toplevel, cmapper.register_mappers)
+  regentlib.start(toplevel, cmapper.register_mappers2)
 end
