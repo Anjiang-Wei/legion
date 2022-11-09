@@ -53,6 +53,9 @@ def compute_average(content):
             cur = item # instantiate cur with the new row
             cur[-2] = 1 if cur[-1] != "ERROR" else 0  # first run
             cur[-1] = float(cur[-1]) if cur[-1] != "ERROR" else 0
+    # last cur
+    cur[-1] = cur[-1] / cur[-2]  if cur[-2] != 0 else "ERROR"
+    res.append(cur)
     print(f"{err_num} errors detected")
     return res
 
