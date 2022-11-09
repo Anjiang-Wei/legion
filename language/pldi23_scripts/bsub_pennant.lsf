@@ -13,7 +13,7 @@ module load cuda/11.7.0
 root_dir="$PWD"
 export LD_LIBRARY_PATH="$PWD"
 
-repeat=5
+repeat=2
 
 # export LEGION_BACKTRACE=1
 oricmd=" -seq_init 0 -par_init 1 -prune 30 -hl:sched 1024 -ll:gpu ${numgpus} -ll:util 2 -ll:bgwork 2 -ll:csize 15000 -ll:fsize 15000 -ll:zsize 2048 -ll:rsize 512 -ll:gsize 0 -level 5 -dm:replicate 1 -dm:same_address_space -dm:memoize -lg:no_fence_elision -lg:parallel_replay 2 "
