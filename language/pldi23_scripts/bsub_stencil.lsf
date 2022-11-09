@@ -17,19 +17,19 @@ repeat=2
 
 # export LEGION_BACKTRACE=1
 oricmd=" -tsteps 50 -tprune 30 -hl:sched 1024 -ll:gpu ${numgpus} -ll:util 1 -ll:bgwork 2 -ll:csize 15000 -ll:fsize 15000  -ll:rsize 512 -ll:gsize 0 -level 5 -dm:replicate 1 -dm:same_address_space -dm:memoize -lg:no_fence_elision -lg:parallel_replay 2 "
-oricmd_nolevel=" -tsteps 50 -tprune 30 -hl:sched 1024 -ll:gpu ${numgpus} -ll:util 1 -ll:bgwork 2 -ll:csize 15000 -ll:fsize 15000  -ll:rsize 512 -ll:gsize 0 -dm:replicate 1 -dm:same_address_space -dm:memoize -lg:no_fence_elision -lg:parallel_replay 2 "
 
 dslcmd=$oricmd" -dslmapper -mapping $root_dir/stencil_mappings "
-dslcmd_nolevel=$oricmd_nolevel" -dslmapper -mapping $root_dir/stencil_mappings "
 
-ori_wrapper=$oricmd_nolevel" -wrapper -level mapper=debug -logfile oriwrapper_${numnodes}_${numgpus}_%.wrapper "
-dsl_wrapper=$dslcmd_nolevel" -wrapper -level mapper=debug nsmapper=debug -logfile dslwrapper_${numnodes}_${numgpus}_%.wrapper "
+ori_wrapper=$oricmd" -wrapper -level mapper=debug -logfile oriwrapper_${numnodes}_${numgpus}_%.wrapper "
+dsl_wrapper=$dslcmd" -wrapper -level mapper=debug nsmapper=debug -logfile dslwrapper_${numnodes}_${numgpus}_%.wrapper "
 
-ori_prof=$oricmd" -lg:prof 1 lg:prof_logfile oriprof_stencil_${numnodes}_${numgpus}_%.gz "
-dsl_prof=$dslcmd" -lg:prof 1 lg:prof_logfile dslprof_stencil_${numnodes}_${numgpus}_%.gz "
+ori_prof=$oricmd" -lg:prof ${numnodes} -lg:prof_logfile oriprof_stencil_${numnodes}_${numgpus}_%.gz "
+dsl_prof=$dslcmd" -lg:prof ${numnodes} -lg:prof_logfile dslprof_stencil_${numnodes}_${numgpus}_%.gz "
 
 nodes=$numnodes
 power=$(echo "l($nodes)/l(2)" | bc -l | xargs printf '%.0f\n')
+
+tile=25000
 
 if [[ ! -d ori ]]; then mkdir ori; fi
 pushd ori
@@ -40,10 +40,12 @@ for i in $power; do
   ny=$(( 2 ** (i/2) ))
   for (( r=1; r <= ${repeat}; r++)); do
     echo "Running $n""x${numgpus}_r${r}"
-    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * 30000 * 1 )) -ny $(( ny * 30000 * 1 )) -ntx $(( nx * 1 )) -nty $(( ny * 1 )) $oricmd | tee out_"$n"x"${numgpus}"_r"$r".log
-    LEGION_BACKTRACE=1 jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * 30000 * 1 )) -ny $(( ny * 30000 * 1 )) -ntx $(( nx * 1 )) -nty $(( ny * 1 )) $oricmd
-    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * 30000 * 1 )) -ny $(( ny * 30000 * 1 )) -ntx $(( nx * 1 )) -nty $(( ny * 1 )) $ori_wrapper
-    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * 30000 * 1 )) -ny $(( ny * 30000 * 1 )) -ntx $(( nx * 1 )) -nty $(( ny * 1 )) $ori_prof
+    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * ${tile} * 2 )) -ny $(( ny * ${tile} * 2 )) -ntx $(( nx * 2 )) -nty $(( ny * 2 )) $oricmd | tee out_"$n"x"${numgpus}"_r"$r".log
+    if (( n < 16 )); then
+      LEGION_BACKTRACE=1 jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * ${tile} * 2 )) -ny $(( ny * ${tile} * 2 )) -ntx $(( nx * 2 )) -nty $(( ny * 2 )) $oricmd
+      jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * ${tile} * 2 )) -ny $(( ny * ${tile} * 2 )) -ntx $(( nx * 2 )) -nty $(( ny * 2 )) $ori_wrapper
+      jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * ${tile} * 2 )) -ny $(( ny * ${tile} * 2 )) -ntx $(( nx * 2 )) -nty $(( ny * 2 )) $ori_prof
+    fi
   done
 done
 
@@ -55,10 +57,12 @@ pushd dsl
 for n in $numnodes; do
   for (( r=1; r <= ${repeat}; r++)); do
     echo "Running $n""x${numgpus}_r${r}"
-    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * 30000 * 1 )) -ny $(( ny * 30000 * 1 )) -ntx $(( nx * 1 )) -nty $(( ny * 1 )) $dslcmd | tee out_"$n"x"${numgpus}"_r"$r".log
-    LEGION_BACKTRACE=1 jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * 30000 * 1 )) -ny $(( ny * 30000 * 1 )) -ntx $(( nx * 1 )) -nty $(( ny * 1 )) $dslcmd
-    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * 30000 * 1 )) -ny $(( ny * 30000 * 1 )) -ntx $(( nx * 1 )) -nty $(( ny * 1 )) $dsl_wrapper
-    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * 30000 * 1 )) -ny $(( ny * 30000 * 1 )) -ntx $(( nx * 1 )) -nty $(( ny * 1 )) $dsl_prof
+    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * ${tile} * 2 )) -ny $(( ny * ${tile} * 2 )) -ntx $(( nx * 2 )) -nty $(( ny * 2 )) $dslcmd | tee out_"$n"x"${numgpus}"_r"$r".log
+    if (( n < 16 )); then
+      LEGION_BACKTRACE=1 jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * ${tile} * 2 )) -ny $(( ny * ${tile} * 2 )) -ntx $(( nx * 2 )) -nty $(( ny * 2 )) $dslcmd
+      jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * ${tile} * 2 )) -ny $(( ny * ${tile} * 2 )) -ntx $(( nx * 2 )) -nty $(( ny * 2 )) $dsl_wrapper
+      jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * ${tile} * 2 )) -ny $(( ny * ${tile} * 2 )) -ntx $(( nx * 2 )) -nty $(( ny * 2 )) $dsl_prof
+    fi
   done
 done
 
