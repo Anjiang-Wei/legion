@@ -23,8 +23,8 @@ dslcmd=$oricmd" -dslmapper -mapping $root_dir/circuit_mappings "
 ori_wrapper=$oricmd" -wrapper -level mapper=debug -logfile oriwrapper_${numnodes}_${numgpus}_%.wrapper "
 dsl_wrapper=$dslcmd" -wrapper -level mapper=debug nsmapper=debug -logfile dslwrapper_${numnodes}_${numgpus}_%.wrapper "
 
-ori_prof=$oricmd" -lg:prof 1 -lg:prof_logfile oriprof_circuit_${numnodes}_${numgpus}_%.gz "
-dsl_prof=$dslcmd" -lg:prof 1 -lg:prof_logfile dslprof_circuit_${numnodes}_${numgpus}_%.gz "
+ori_prof=$oricmd" -lg:prof ${numnodes} -lg:prof_logfile oriprof_circuit_${numnodes}_${numgpus}_%.gz "
+dsl_prof=$dslcmd" -lg:prof ${numnodes} -lg:prof_logfile dslprof_circuit_${numnodes}_${numgpus}_%.gz "
 
 if [[ ! -d ori ]]; then mkdir ori; fi
 pushd ori
