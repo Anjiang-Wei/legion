@@ -6,6 +6,7 @@ import csv
 import glob
 import os
 import re
+import sys
 
 _filename_re = re.compile(r'out_([0-9]+)x([0-9]+)_r([0-9]+)[.]log')
 def parse_basename(filename):
@@ -32,6 +33,25 @@ def parse_content(path):
 #         if match is None:
 #             return ('ERROR',)
 #         return match.groups()
+def compute_average(content):
+    global repetition
+    res = []
+    cur = []
+    err_num = 0
+    for item in content:
+        if item[:3] == cur[:3]: # [system, nodes, procs_per_node] the same
+            if cur[-1] != "ERROR":
+                cur[-2] += 1 # one more repetitions
+                cur[-1] += item[-1] # float??
+            else:
+                err_num += 1
+        else:
+            cur[-1] = cur[-1] / cur[-2] # time averaged by the number of repetitions
+            res.append(cur)
+            cur = item # instantiate cur with the new row
+            cur[-2] = 1 # first repetition
+    print(f"{err_num} errors detected")
+    return res
 
 def main():
     paths = glob.glob('*/*.log')
@@ -39,12 +59,12 @@ def main():
     content = [(os.path.dirname(path),) + parse_basename(os.path.basename(path)) + parse_content(path) for path in paths]
     content.sort(key=lambda row: (row[0], int(row[1]), int(row[2]), int(row[3])))
 
-    import sys
+    average = compute_average(content)
     # with open(out_filename, 'w') as f:
     out = csv.writer(sys.stdout)# , dialect='excel-tab') # f)
     # out.writerow(['system', 'nodes', 'procs_per_node', 'rep', 'elapsed_time', 'gflops'])
-    out.writerow(['system', 'nodes', 'procs_per_node', 'rep', 'elapsed_time'])
-    out.writerows(content)
+    out.writerow(['system', 'nodes', 'procs_per_node', 'rep', 'average_time'])
+    out.writerows(average)
 
 if __name__ == '__main__':
     main()
