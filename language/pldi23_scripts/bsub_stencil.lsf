@@ -29,7 +29,7 @@ dsl_prof=$dslcmd" -lg:prof ${numnodes} -lg:prof_logfile dslprof_stencil_${numnod
 nodes=$numnodes
 power=$(echo "l($nodes)/l(2)" | bc -l | xargs printf '%.0f\n')
 
-tile=20000
+tile=15000
 
 if [[ ! -d ori ]]; then mkdir ori; fi
 pushd ori
