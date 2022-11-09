@@ -57,7 +57,7 @@ void generate_mesh_raw(
 
 void print_rusage(const char *);
 
-void register_mappers();
+void register_mappers2();
 
 #ifdef __cplusplus
 }

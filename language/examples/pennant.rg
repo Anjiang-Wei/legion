@@ -1542,7 +1542,7 @@ if os.getenv('SAVEOBJ') == '1' then
   end
 
   local exe = os.getenv('OBJNAME') or "pennant"
-  regentlib.saveobj(toplevel, exe, "executable", cpennant.register_mappers, link_flags)
+  regentlib.saveobj(toplevel, exe, "executable", cpennant.register_mappers2, link_flags)
 else
-  regentlib.start(toplevel, cpennant.register_mappers)
+  regentlib.start(toplevel, cpennant.register_mappers2)
 end
