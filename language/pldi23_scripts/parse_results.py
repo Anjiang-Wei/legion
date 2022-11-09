@@ -42,7 +42,7 @@ def compute_average(content):
         if item[:3] == cur[:3]: # [system, nodes, procs_per_node] the same
             if cur[-1] != "ERROR":
                 cur[-2] += 1 # one more repetitions
-                cur[-1] += item[-1] # float??
+                cur[-1] += float(item[-1])
             else:
                 err_num += 1
         else:
@@ -51,6 +51,7 @@ def compute_average(content):
                 res.append(cur)
             cur = list(item) # instantiate cur with the new row
             cur[-2] = 1 # first repetition
+            cur[-1] = float(cur[-1])
     print(f"{err_num} errors detected")
     return res
 
