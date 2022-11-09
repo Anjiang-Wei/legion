@@ -49,7 +49,7 @@ def compute_average(content):
             if cur != []:
                 cur[-1] = cur[-1] / cur[-2] # time averaged by the number of repetitions
                 res.append(cur)
-            cur = item # instantiate cur with the new row
+            cur = list(item) # instantiate cur with the new row
             cur[-2] = 1 # first repetition
     print(f"{err_num} errors detected")
     return res
