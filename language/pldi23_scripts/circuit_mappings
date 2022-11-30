@@ -15,17 +15,19 @@ Region update_voltages rp_shared GPU ZCMEM;
 # for $task, $region, $mem_type, specify $list_of_layout_constraints
 Layout * * * SOA C_order; # Other choices: AOS F_order Exact Align==128 Compact
 
-mcpu_init = Machine(CPU); # nodes * processors
-mcpu = mcpu_init.merge(0, 1); # 1-dim processors
+mcpu = Machine(CPU); # nodes * processors
 
-mgpu_init = Machine(GPU); # nodes * processors
+mgpu = Machine(GPU); # nodes * processors
 
-m = mgpu_init; # we can use tenary operator
-
-def cyclic1d(Task task) {
+def linearblock(Task task) {
     # task.ispace is a n-dim tuple (in this case n=1) indicating launch domain, not used here
-    return m[task.ipoint[0] / m.size[1], task.ipoint[0] % m.size[1]]; # return one point in a machine model (or generally, can be a subset of points on the same node)
+    return mgpu[task.ipoint[0] / mgpu.size[1], task.ipoint[0] % mgpu.size[1]]; # return one point in a machine model (or generally, can be a subset of points on the same node)
+}
+
+def block_shard_cpu(Task task) {
+    return mcpu[task.ipoint[0] / mgpu.size[1], 0]; # only one CPU
 }
 
 # specify $task_name(s) and sharding+slicing function
-IndexTaskMap calculate_new_currents,distribute_charge,update_voltages cyclic1d;
+IndexTaskMap calculate_new_currents,distribute_charge,update_voltages linearblock;
+IndexTaskMap init_piece,init_pointers,print_summary block_shard_cpu;
