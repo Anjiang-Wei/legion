@@ -19,13 +19,12 @@ mcpu_init = Machine(CPU); # nodes * processors
 mcpu = mcpu_init.merge(0, 1); # 1-dim processors
 
 mgpu_init = Machine(GPU); # nodes * processors
-mgpu = mgpu_init.merge(1, 0); # 1-dim processors
 
 m = mgpu.volume > 0 ? mgpu : mcpu; # we can use tenary operator
 
 def cyclic1d(Task task) {
     # task.ispace is a n-dim tuple (in this case n=1) indicating launch domain, not used here
-    return m[task.ipoint[0] % m.size[0]]; # return one point in a machine model (or generally, can be a subset of points on the same node)
+    return m[task.ipoint[0] / m.size[1], task.ipoint[0] % m.size[1]]; # return one point in a machine model (or generally, can be a subset of points on the same node)
 }
 
 # specify $task_name(s) and sharding+slicing function
