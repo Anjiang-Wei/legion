@@ -19,7 +19,7 @@ mcpu_init = Machine(CPU); # nodes * processors
 mcpu = mcpu_init.merge(0, 1); # 1-dim processors
 
 mgpu_init = Machine(GPU); # nodes * processors
-mgpu = mgpu_init.merge(0, 1); # 1-dim processors
+mgpu = mgpu_init.merge(1, 0); # 1-dim processors
 
 m = mgpu.volume > 0 ? mgpu : mcpu; # we can use tenary operator
 
