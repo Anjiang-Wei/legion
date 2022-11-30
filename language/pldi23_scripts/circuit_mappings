@@ -20,7 +20,7 @@ mcpu = mcpu_init.merge(0, 1); # 1-dim processors
 
 mgpu_init = Machine(GPU); # nodes * processors
 
-m = mgpu.volume > 0 ? mgpu : mcpu; # we can use tenary operator
+m = mgpu_init; # we can use tenary operator
 
 def cyclic1d(Task task) {
     # task.ispace is a n-dim tuple (in this case n=1) indicating launch domain, not used here
