@@ -3,7 +3,7 @@ Task * GPU,CPU; # for any task, run on GPU if supported
 Region * * GPU FBMEM; # for any task, any region, if mapped onto GPU, use FBMEM as default
 Region * * CPU SYSMEM; # if mapped onto CPU, use SYSMEM as default
 
-Layout * * * SOA C_order;
+Layout * * * SOA F_order;
 
 mcpu = Machine(CPU);
 mgpu = Machine(GPU);
