@@ -21,8 +21,8 @@ oricmd=" -seq_init 0 -par_init 1 -prune 30 -hl:sched 1024 -ll:gpu ${numgpus} -ll
 
 dslcmd=$oricmd" -dslmapper -mapping $root_dir/pennant_mappings "
 
-ori_wrapper=$oricmd" -wrapper -level mapper=debug -logfile oriwrapper_${numnodes}_${numgpus}_%.wrapper "
-dsl_wrapper=$dslcmd" -wrapper -level mapper=debug nsmapper=debug -logfile dslwrapper_${numnodes}_${numgpus}_%.wrapper "
+ori_wrapper=$oricmd" -lg:inorder -wrapper -level mapper=debug -logfile oriwrapper_${numnodes}_${numgpus}_%.wrapper "
+dsl_wrapper=$dslcmd" -lg:inorder -wrapper -level mapper=debug nsmapper=debug -logfile dslwrapper_${numnodes}_${numgpus}_%.wrapper "
 
 ori_prof=$oricmd" -lg:prof ${numnodes} -lg:prof_logfile oriprof_pennant_${numnodes}_${numgpus}_%.gz "
 dsl_prof=$dslcmd" -lg:prof ${numnodes} -lg:prof_logfile dslprof_pennant_${numnodes}_${numgpus}_%.gz "
