@@ -17,12 +17,5 @@ def cyclic_shard_cpu(Task task) {
     return mcpu[task.ipoint[0] % mgpu.size[0], 0]; # only one CPU
 }
 
-# IndexTaskMap init_mesh_zones,init_side_fracs,init_hydro                     linearcyclic;
-# IndexTaskMap init_radial_velocity,init_step_zones,init_step_points          linearcyclic;
-# IndexTaskMap calc_centers,calc_centers_full,calc_volumes,calc_volumes_full  linearcyclic;
-# IndexTaskMap adv_pos_half,calc_rho_half,calc_state_at_half,calc_char_len    linearcyclic;
-# IndexTaskMap sum_point_mass,calc_force_pgas_tts,qcs_zone_center_velocity    linearcyclic;
-# IndexTaskMap qcs_corner_divergence,qcs_qcn_force                            linearcyclic;
-# IndexTaskMap initialize_topology,init_pointers                              cyclic_shard_cpu;
-# Proposal: IndexTaskMap GPU linearcyclic;
-# IndexTaskMap CPU cyclic_shard_cpu;
+IndexTaskMap GPU linearcyclic;
+IndexTaskMap CPU cyclic_shard_cpu;
