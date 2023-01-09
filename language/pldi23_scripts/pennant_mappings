@@ -2,6 +2,10 @@ Task * GPU,CPU; # for any task, run on GPU if supported
 
 Region * * GPU FBMEM; # for any task, any region, if mapped onto GPU, use FBMEM as default
 Region * * CPU SYSMEM; # if mapped onto CPU, use SYSMEM as default
+Region calc_centers_full 3 GPU ZCMEM;
+Region calc_volumes_full 3 GPU ZCMEM;
+Region init_radial_velocity * GPU ZCMEM;
+Region init_step_points * GPU ZCMEM;
 
 # for $task, $region, $mem_type, specify $list_of_layout_constraints
 Layout * * * SOA C_order; # Other choices: AOS F_order Exact Align==128 Compact
