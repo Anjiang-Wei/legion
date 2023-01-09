@@ -1,4 +1,5 @@
 #!/bin/bash
+#BSUB -alloc_flags atsdisable
 
 numnodes=$(( ($LSB_DJOB_NUMPROC - 1) / 40))
 numgpus=4
