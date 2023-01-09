@@ -1016,6 +1016,14 @@ public:
   void pennant_create_copy_instance(MapperContext ctx, const Copy &copy,
                                     const RegionRequirement &req, unsigned index,
                                     std::vector<PhysicalInstance> &instances);
+  template <typename Handle>
+  void maybe_append_handle_name(const MapperContext ctx,
+                                          const Handle &handle,
+                                          std::vector<std::string> &names);
+
+  void get_handle_names(const MapperContext ctx,
+                        const RegionRequirement &req,
+                        std::vector<std::string> &names);
 private:
   std::vector<Processor>& procs_list;
   std::vector<Memory>& sysmems_list;
@@ -1113,6 +1121,34 @@ void PennantMapper::default_policy_select_target_processors(
   target_procs.push_back(task.target_proc);
 }
 
+template <typename Handle>
+void PennantMapper::maybe_append_handle_name(const MapperContext ctx,
+                                        const Handle &handle,
+                                        std::vector<std::string> &names)
+{
+  const void *result = nullptr;
+  size_t size = 0;
+  if (runtime->retrieve_semantic_information(
+          ctx, handle, LEGION_NAME_SEMANTIC_TAG, result, size, true, true))
+    names.push_back(std::string(static_cast<const char *>(result)));
+}
+
+void PennantMapper::get_handle_names(const MapperContext ctx,
+                      const RegionRequirement &req,
+                      std::vector<std::string> &names)
+{
+  maybe_append_handle_name(ctx, req.region, names);
+
+  if (runtime->has_parent_logical_partition(ctx, req.region))
+  {
+    auto parent = runtime->get_parent_logical_partition(ctx, req.region);
+    maybe_append_handle_name(ctx, parent, names);
+  }
+
+  if (req.region != req.parent)
+    maybe_append_handle_name(ctx, req.parent, names);
+}
+
 Memory PennantMapper::default_policy_select_target_memory(MapperContext ctx,
                                                           Processor target_proc,
                                                           const RegionRequirement &req,
@@ -1128,6 +1164,14 @@ Memory PennantMapper::default_policy_select_target_memory(MapperContext ctx,
   DomainPoint color = runtime->get_logical_region_color_point(ctx, parent);
   if (color[0] > 0)
   {
+    // std::vector<std::string> path;
+    // get_handle_names(ctx, req, path);
+    // printf("---start---\n");
+    // for (int i = 0; i < path.size(); i++)
+    // {
+    //   std::cout << path[i] << " to ZCMEM by david" << std::endl;
+    // }
+    // printf("---end---\n");
     Machine::MemoryQuery visible_memories(machine);
     visible_memories.has_affinity_to(target_proc);
     visible_memories.only_kind(Memory::Z_COPY_MEM);
