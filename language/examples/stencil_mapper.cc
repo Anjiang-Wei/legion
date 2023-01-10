@@ -370,17 +370,32 @@ static void create_mappers2(Machine machine, Runtime *runtime, const std::set<Pr
   bool use_logging_wrapper = false;
   bool use_dsl_mapper = false;
   auto args = Runtime::get_input_args();
-  NSMapper::backpressure = false; // never use backpressure for circuit
+  NSMapper::backpressure = false;
+  NSMapper::use_semantic_name = false;
+  NSMapper::untrackValidRegions = false;
+  NSMapper::select_source_by_bandwidth = false;
   for (auto idx = 0; idx < args.argc; ++idx)
   {
     if (strcmp(args.argv[idx], "-wrapper") == 0)
     {
       use_logging_wrapper = true;
     }
-    // todo: in the final public-use version, remove this
+    // todo: in the final version, change tm to be the formal name of DSLMapper
     if (strcmp(args.argv[idx], "-tm:enable_backpressure") == 0)
     {
       NSMapper::backpressure = true;
+    }
+    if (strcmp(args.argv[idx], "-tm:untrack_valid_regions") == 0)
+    {
+      NSMapper::untrackValidRegions = true;
+    }
+    if (strcmp(args.argv[idx], "-tm:use_semantic_name") == 0)
+    {
+      NSMapper::use_semantic_name = true;
+    }
+    if (strcmp(args.argv[idx], "-tm:select_source_by_bandwidth") == 0)
+    {
+      NSMapper::select_source_by_bandwidth = true;
     }
     if (strcmp(args.argv[idx], "-dslmapper") == 0)
     {
