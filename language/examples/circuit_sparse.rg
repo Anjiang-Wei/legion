@@ -631,7 +631,8 @@ do
       c.legion_ptr_t { value = range.rect.hi })
   end
 
-  return partition(aliased, all_shared, ghost_node_map, ghost_ranges.ispace)
+  var rp_ghost = partition(aliased, all_shared, ghost_node_map, ghost_ranges.ispace)
+  return rp_ghost
 end
 
 task parse_input(conf : Config)

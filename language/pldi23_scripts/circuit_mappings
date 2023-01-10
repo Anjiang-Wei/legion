@@ -6,11 +6,8 @@ Region * * CPU SYSMEM; # if mapped onto CPU, use SYSMEM as default
 # for $task, $region, if mapped onto $proc_type, specify $mem_type to use
 # https://github.com/Anjiang-Wei/legion/blob/circuit_example/language/examples/circuit_bishop.rg#L24-L62
 # for region names, we need to use the region names that are passed in (instead of what is defined in task)
-Region calculate_new_currents rp_shared GPU ZCMEM;
-Region calculate_new_currents rp_ghost GPU ZCMEM; # if the task is not mapped to GPU, it won't take effect
-Region distribute_charge rp_shared GPU ZCMEM;
-Region distribute_charge rp_ghost GPU ZCMEM;
-Region update_voltages rp_shared GPU ZCMEM;
+Region * rp_shared GPU ZCMEM;
+Region * rp_ghost GPU ZCMEM; # if the task is not mapped to GPU, it won't take effect
 
 # for $task, $region, $mem_type, specify $list_of_layout_constraints
 Layout * * * SOA C_order; # Other choices: AOS F_order Exact Align==128 Compact
