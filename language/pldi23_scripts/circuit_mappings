@@ -22,7 +22,7 @@ def linearblock(Task task) {
 }
 
 def block_shard_cpu(Task task) {
-    return mcpu[task.ipoint[0] / mgpu.size[1], 0]; # only one CPU
+    return mcpu[task.ipoint[0] / mcpu.size[1], 0]; # only one CPU per node
 }
 
 # specify $task_name(s) and sharding+slicing function
