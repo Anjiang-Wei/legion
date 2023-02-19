@@ -39,6 +39,53 @@ CholeskyMapper::CholeskyMapper(MapperRuntime *rt, Machine machine, Processor loc
 {
 }
 
+class CholeskyMapper2 : public DefaultMapper
+{
+public:
+  CholeskyMapper2(MapperRuntime *rt, Machine machine, Processor local, const char *mapper_name);
+  virtual void map_task(const MapperContext ctx,
+                        const Task &task,
+                        const MapTaskInput &input,
+                        MapTaskOutput &output);
+};
+
+CholeskyMapper2::CholeskyMapper2(MapperRuntime *rt, Machine machine, Processor local, const char *mapper_name)
+    : DefaultMapper(rt, machine, local, mapper_name)
+{
+}
+
+#define DEBUG_PRIORITY
+
+void CholeskyMapper2::map_task(const MapperContext ctx,
+                               const Task &task,
+                               const MapTaskInput &input,
+                               MapTaskOutput &output)
+{
+  DefaultMapper::map_task(ctx, task, input, output);
+  std::string task_name = task.get_task_name();
+  if (task_name == "dpotrf")
+  {
+    output.task_priority = 3;
+#ifdef DEBUG_PRIORITY
+    printf("dpotrf: 3");
+#endif
+  }
+  else if (task_name == "dtrsm")
+  {
+    output.task_priority = 2;
+#ifdef DEBUG_PRIORITY
+    printf("dtrsm: 2");
+#endif
+  }
+  else if (task_name == "dsyrk")
+  {
+    output.task_priority = 1;
+#ifdef DEBUG_PRIORITY
+    printf("dsyrk: 1");
+#endif
+  }
+}
+
 static void create_mappers2(Machine machine, Runtime *runtime, const std::set<Processor> &local_procs)
 {
   // log_mapper.debug("Inside create_mappers local_procs.size() = %ld", local_procs.size());
@@ -82,29 +129,39 @@ static void create_mappers2(Machine machine, Runtime *runtime, const std::set<Pr
     for (std::set<Processor>::const_iterator it = local_procs.begin();
          it != local_procs.end(); it++)
     {
-      NSMapper *mapper = NULL;
-      if (it == local_procs.begin())
-      {
-        mapper = new NSMapper(runtime->get_mapper_runtime(), machine, *it, "ns_mapper", true);
-        mapper->register_user_sharding_functors(runtime);
-        // todo: change back to this in final version
-        // backpressure = (mapper->tree_result.task2limit.size() > 0);
-      }
-      else
-      {
-        mapper = new NSMapper(runtime->get_mapper_runtime(), machine, *it, "ns_mapper", false);
-      }
+      // NSMapper *mapper = NULL;
+      // if (it == local_procs.begin())
+      // {
+      //   mapper = new NSMapper(runtime->get_mapper_runtime(), machine, *it, "ns_mapper", true);
+      //   mapper->register_user_sharding_functors(runtime);
+      //   // todo: change back to this in final version
+      //   // backpressure = (mapper->tree_result.task2limit.size() > 0);
+      // }
+      // else
+      // {
+      //   mapper = new NSMapper(runtime->get_mapper_runtime(), machine, *it, "ns_mapper", false);
+      // }
+      // if (use_logging_wrapper)
+      // {
+      //   runtime->replace_default_mapper(new Mapping::LoggingWrapper(mapper), (NSMapper::backpressure ? (Processor::NO_PROC) : (*it)));
+      // }
+      // else
+      // {
+      //   runtime->replace_default_mapper(mapper, (NSMapper::backpressure ? (Processor::NO_PROC) : (*it)));
+      // }
+      // if (NSMapper::backpressure)
+      // {
+      //   break;
+      // }
+      CholeskyMapper2 *mapper = new CholeskyMapper2(runtime->get_mapper_runtime(),
+                                                    machine, *it, "cholesky_mapper");
       if (use_logging_wrapper)
       {
-        runtime->replace_default_mapper(new Mapping::LoggingWrapper(mapper), (NSMapper::backpressure ? (Processor::NO_PROC) : (*it)));
+        runtime->replace_default_mapper(new Mapping::LoggingWrapper(mapper), *it);
       }
       else
       {
-        runtime->replace_default_mapper(mapper, (NSMapper::backpressure ? (Processor::NO_PROC) : (*it)));
-      }
-      if (NSMapper::backpressure)
-      {
-        break;
+        runtime->replace_default_mapper(mapper, *it);
       }
     }
     return;
