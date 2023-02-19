@@ -15,7 +15,7 @@ module load cuda/11.7.0
 root_dir="$PWD"
 export LD_LIBRARY_PATH="$PWD"
 
-repeat=1
+repeat=5
 
 # export LEGION_BACKTRACE=1
 # Lassen-specific -ll:csize 150000
