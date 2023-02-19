@@ -54,7 +54,7 @@ CholeskyMapper2::CholeskyMapper2(MapperRuntime *rt, Machine machine, Processor l
 {
 }
 
-#define DEBUG_PRIORITY
+// #define DEBUG_PRIORITY
 
 void CholeskyMapper2::map_task(const MapperContext ctx,
                                const Task &task,
