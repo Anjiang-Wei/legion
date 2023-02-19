@@ -22,6 +22,55 @@
 
 import "regent"
 
+-- Compile and link circuit_mapper.cc
+local cmapper
+do
+  local root_dir = arg[0]:match(".*/") or "./"
+
+  local include_path = ""
+  local include_dirs = terralib.newlist()
+  include_dirs:insert("-I")
+  include_dirs:insert(root_dir)
+  for path in string.gmatch(os.getenv("INCLUDE_PATH"), "[^;]+") do
+    include_path = include_path .. " -I " .. path
+    include_dirs:insert("-I")
+    include_dirs:insert(path)
+  end
+
+  local mapper_cc = root_dir .. "cholesky_mapper.cc"
+  local mapper_so
+  if os.getenv('OBJNAME') then
+    local out_dir = os.getenv('OBJNAME'):match('.*/') or './'
+    mapper_so = out_dir .. "libcholesky_mapper.so"
+  elseif os.getenv('SAVEOBJ') == '1' then
+    mapper_so = root_dir .. "libcholesky_mapper.so"
+  else
+    mapper_so = os.tmpname() .. ".so" -- root_dir .. "cholesky_mapper.so"
+  end
+  local cxx = os.getenv('CXX') or 'c++'
+
+  local cxx_flags = os.getenv('CXXFLAGS') or ''
+  -- cxx_flags = cxx_flags .. " -O2 -Wall -Werror"
+  cxx_flags = cxx_flags .. " -O2 -Wall"
+  if os.execute('test "$(uname)" = Darwin') == 0 then
+    cxx_flags =
+      (cxx_flags ..
+         " -dynamiclib -single_module -undefined dynamic_lookup -fPIC")
+  else
+    cxx_flags = cxx_flags .. " -shared -fPIC"
+  end
+
+  local cmd = (cxx .. " " .. cxx_flags .. " " .. include_path .. " " ..
+                 mapper_cc .. " -o " .. mapper_so)
+  if os.execute(cmd) ~= 0 then
+    print("Error: failed to compile " .. mapper_cc)
+    assert(false)
+  end
+  regentlib.linklibrary(mapper_so)
+  cmapper = terralib.includec("cholesky_mapper.h", include_dirs)
+end
+
+
 local blas = terralib.includecstring [[
 extern void dgemm_(char* transa, char* transb, int* m, int* n, int* k, double* alpha,
                    double* A, int* lda, double* B, int* ldb, double* beta,
@@ -326,4 +375,20 @@ task toplevel()
   cholesky(n, np, verify)
 end
 
-regentlib.start(toplevel)
+-- regentlib.start(toplevel)
+
+if os.getenv('SAVEOBJ') == '1' then
+  local root_dir = arg[0]:match(".*/") or "./"
+  local out_dir = (os.getenv('OBJNAME') and os.getenv('OBJNAME'):match('.*/')) or root_dir
+  local link_flags = terralib.newlist({"-L" .. out_dir, "-lcholesky_mapper", "-lm"})
+
+  if os.getenv('STANDALONE') == '1' then
+    os.execute('cp ' .. os.getenv('LG_RT_DIR') .. '/../bindings/regent/' ..
+        regentlib.binding_library .. ' ' .. out_dir)
+  end
+
+  local exe = os.getenv('OBJNAME') or "cholesky"
+  regentlib.saveobj(toplevel, exe, "executable", cmapper.register_mappers2, link_flags)
+else
+  regentlib.start(toplevel, cmapper.register_mappers2)
+end
