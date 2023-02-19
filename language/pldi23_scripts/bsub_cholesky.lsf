@@ -34,13 +34,13 @@ pushd ori
 
 for n in $numnodes; do
   if (( n < 16 )); then
-    LEGION_BACKTRACE=1 jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n -n $(( $n * 8 )) -p $(( $n * 4 )) $oricmd
-    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n -n $(( $n * 8 )) -p $(( $n * 4 )) $ori_wrapper
-    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n -n $(( $n * 8 )) -p $(( $n * 4 )) $ori_prof
+    LEGION_BACKTRACE=1 jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/cholesky" -nn $(( $n * 8 )) -p $(( $n * 4 )) $oricmd
+    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/cholesky" -nn $(( $n * 8 )) -p $(( $n * 4 )) $ori_wrapper
+    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/cholesky" -nn $(( $n * 8 )) -p $(( $n * 4 )) $ori_prof
   fi
   for (( r=1; r <= ${repeat}; r++)); do
     echo "Running $n""x${numgpus}_r${r}"
-    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n -n $(( $n * 8 )) -p $(( $n * 4 )) $oricmd | tee out_"$n"x"${numgpus}"_r"$r".log
+    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/cholesky" -nn $(( $n * 8 )) -p $(( $n * 4 )) $oricmd | tee out_"$n"x"${numgpus}"_r"$r".log
   done
 done
 
@@ -51,13 +51,13 @@ pushd dsl
 
 for n in $numnodes; do
   if (( n < 16 )); then
-    LEGION_BACKTRACE=1 jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n -n $(( $n * 8 )) -p $(( $n * 4 )) $dslcmd
-    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n -n $(( $n * 8 )) -p $(( $n * 4 )) $dsl_wrapper
-    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n -n $(( $n * 8 )) -p $(( $n * 4 )) $dsl_prof
+    LEGION_BACKTRACE=1 jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/cholesky" -nn $(( $n * 8 )) -p $(( $n * 4 )) $dslcmd
+    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/cholesky" -nn $(( $n * 8 )) -p $(( $n * 4 )) $dsl_wrapper
+    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/cholesky" -nn $(( $n * 8 )) -p $(( $n * 4 )) $dsl_prof
   fi
   for (( r=1; r <= ${repeat}; r++)); do
     echo "Running $n""x${numgpus}_r${r}"
-    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n -n $(( $n * 8 )) -p $(( $n * 4 )) $dslcmd | tee out_"$n"x"${numgpus}"_r"$r".log
+    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/cholesky" -nn $(( $n * 8 )) -p $(( $n * 4 )) $dslcmd | tee out_"$n"x"${numgpus}"_r"$r".log
   done
 done
 

@@ -363,7 +363,7 @@ task toplevel()
 
   var args = c.legion_runtime_get_input_args()
   for i = 0, args.argc do
-    if cstr.strcmp(args.argv[i], "-n") == 0 then
+    if cstr.strcmp(args.argv[i], "-nn") == 0 then
       n = std.atoi(args.argv[i + 1])
     elseif cstr.strcmp(args.argv[i], "-p") == 0 then
       np = std.atoi(args.argv[i + 1])
