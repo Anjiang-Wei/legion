@@ -28,10 +28,20 @@
 using namespace Legion;
 using namespace Legion::Mapping;
 
+class CholeskyMapper : public DefaultMapper
+{
+public:
+  CholeskyMapper(MapperRuntime *rt, Machine machine, Processor local, const char *mapper_name);
+};
+
+CholeskyMapper::CholeskyMapper(MapperRuntime *rt, Machine machine, Processor local, const char *mapper_name)
+    : DefaultMapper(rt, machine, local, mapper_name)
+{
+}
 
 static void create_mappers2(Machine machine, Runtime *runtime, const std::set<Processor> &local_procs)
 {
-   // log_mapper.debug("Inside create_mappers local_procs.size() = %ld", local_procs.size());
+  // log_mapper.debug("Inside create_mappers local_procs.size() = %ld", local_procs.size());
   bool use_logging_wrapper = false;
   bool use_dsl_mapper = false;
   auto args = Runtime::get_input_args();
@@ -70,9 +80,9 @@ static void create_mappers2(Machine machine, Runtime *runtime, const std::set<Pr
   if (use_dsl_mapper)
   {
     for (std::set<Processor>::const_iterator it = local_procs.begin();
-        it != local_procs.end(); it++)
+         it != local_procs.end(); it++)
     {
-      NSMapper* mapper = NULL;
+      NSMapper *mapper = NULL;
       if (it == local_procs.begin())
       {
         mapper = new NSMapper(runtime->get_mapper_runtime(), machine, *it, "ns_mapper", true);
@@ -98,6 +108,20 @@ static void create_mappers2(Machine machine, Runtime *runtime, const std::set<Pr
       }
     }
     return;
+  }
+  for (std::set<Processor>::const_iterator it = local_procs.begin();
+       it != local_procs.end(); it++)
+  {
+    CholeskyMapper *mapper = new CholeskyMapper(runtime->get_mapper_runtime(),
+                                                machine, *it, "cholesky_mapper");
+    if (use_logging_wrapper)
+    {
+      runtime->replace_default_mapper(new Mapping::LoggingWrapper(mapper), *it);
+    }
+    else
+    {
+      runtime->replace_default_mapper(mapper, *it);
+    }
   }
 }
 
