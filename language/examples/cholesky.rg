@@ -92,8 +92,8 @@ if os.execute("bash -c \"[ `uname` == 'Darwin' ]\"") == 0 then
   regentlib.linklibrary("libblas.dylib")
   regentlib.linklibrary("liblapack.dylib")
 else
-  regentlib.linklibrary("libblas.so")
-  regentlib.linklibrary("liblapack.so")
+  regentlib.linklibrary("/usr/lib64/libblas.so") -- customized for Lassen, originally "libblas.so"
+  regentlib.linklibrary("/usr/lib64/liblapack.so") -- "liblapack.so"
 end
 
 local c = regentlib.c
