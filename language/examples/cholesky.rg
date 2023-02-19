@@ -351,7 +351,8 @@ task cholesky(n : int, np : int, verify : bool)
 
   __fence(__execution, __block)
   var ts_end = c.legion_get_current_time_in_micros()
-  c.printf("ELAPSED TIME = %7.3f ms\n", 1e-3 * (ts_end - ts_start))
+  -- c.printf("ELAPSED TIME = %7.3f ms\n", 1e-3 * (ts_end - ts_start))
+  c.printf("ELAPSED TIME = %7.6f s\n", 1e-6 * (ts_end - ts_start))
 
   if verify then verify_result(n, rA, rB) end
 end
