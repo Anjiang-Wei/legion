@@ -54,7 +54,7 @@ CholeskyMapper2::CholeskyMapper2(MapperRuntime *rt, Machine machine, Processor l
 {
 }
 
-// #define DEBUG_PRIORITY
+#define DEBUG_PRIORITY
 
 void CholeskyMapper2::map_task(const MapperContext ctx,
                                const Task &task,
@@ -65,23 +65,23 @@ void CholeskyMapper2::map_task(const MapperContext ctx,
   std::string task_name = task.get_task_name();
   if (task_name == "dpotrf")
   {
-    output.task_priority = 3;
+    output.task_priority = 2;
 #ifdef DEBUG_PRIORITY
-    printf("dpotrf: 3");
+    printf("dpotrf: 2");
 #endif
   }
   else if (task_name == "dtrsm")
   {
-    output.task_priority = 2;
+    output.task_priority = 1;
 #ifdef DEBUG_PRIORITY
-    printf("dtrsm: 2");
+    printf("dtrsm: 1");
 #endif
   }
   else if (task_name == "dsyrk")
   {
     output.task_priority = 1;
 #ifdef DEBUG_PRIORITY
-    printf("dsyrk: 1");
+    printf("dsyrk: 0");
 #endif
   }
 }
