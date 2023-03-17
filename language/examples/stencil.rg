@@ -18,6 +18,63 @@ import "regent"
 
 local c = regentlib.c
 
+local map_locally = false
+do
+  local cstring = terralib.includec("string.h")
+  for _, arg in ipairs(arg) do
+    if cstring.strcmp(arg, "-map_locally") == 0 then
+      map_locally = true
+      break
+    end
+  end
+end
+
+do
+  local root_dir = arg[0]:match(".*/") or "./"
+
+  local include_path = ""
+  local include_dirs = terralib.newlist()
+  include_dirs:insert("-I")
+  include_dirs:insert(root_dir)
+  for path in string.gmatch(os.getenv("INCLUDE_PATH"), "[^;]+") do
+    include_path = include_path .. " -I " .. path
+    include_dirs:insert("-I")
+    include_dirs:insert(path)
+  end
+
+  local mapper_cc = root_dir .. "stencil_slow_mapper.cc"
+  if os.getenv('OBJNAME') then
+    local out_dir = os.getenv('OBJNAME'):match('.*/') or './'
+    mapper_so = out_dir .. "libstencil_slow_mapper.so"
+  elseif os.getenv('SAVEOBJ') == '1' then
+    mapper_so = root_dir .. "libstencil_slow_mapper.so"
+  else
+    mapper_so = os.tmpname() .. ".so" -- root_dir .. "stencil_mapper.so"
+  end
+  local cxx = os.getenv('CXX') or 'c++'
+
+  local cxx_flags = os.getenv('CXXFLAGS') or ''
+  -- cxx_flags = cxx_flags .. " -O2 -Wall -Werror"
+  cxx_flags = cxx_flags .. " -O2 -Wall"
+  if map_locally then cxx_flags = cxx_flags .. " -DMAP_LOCALLY " end
+  if os.execute('test "$(uname)" = Darwin') == 0 then
+    cxx_flags =
+      (cxx_flags ..
+         " -dynamiclib -single_module -undefined dynamic_lookup -fPIC")
+  else
+    cxx_flags = cxx_flags .. " -shared -fPIC"
+  end
+
+  local cmd = (cxx .. " " .. cxx_flags .. " " .. include_path .. " " ..
+                 mapper_cc .. " -o " .. mapper_so)
+  if os.execute(cmd) ~= 0 then
+    print("Error: failed to compile " .. mapper_cc)
+    assert(false)
+  end
+  regentlib.linklibrary(mapper_so)
+  cmapper = terralib.includec("stencil_slow_mapper.h", include_dirs)
+end
+
 local min = regentlib.fmin
 local max = regentlib.fmax
 
@@ -172,4 +229,23 @@ task main()
     check(interior[i], tsteps, init)
   end
 end
-regentlib.start(main)
+-- regentlib.start(main)
+
+if os.getenv('SAVEOBJ') == '1' then
+  local root_dir = arg[0]:match(".*/") or "./"
+  local out_dir = (os.getenv('OBJNAME') and os.getenv('OBJNAME'):match('.*/')) or root_dir
+  local link_flags = terralib.newlist({"-L" .. out_dir, "-lstencil_slow_mapper"})
+  if USE_FOREIGN then
+    link_flags:insert("-lstencil")
+  end
+
+  if os.getenv('STANDALONE') == '1' then
+    os.execute('cp ' .. os.getenv('LG_RT_DIR') .. '/../bindings/regent/' ..
+        regentlib.binding_library .. ' ' .. out_dir)
+  end
+
+  local exe = os.getenv('OBJNAME') or "introexp"
+  regentlib.saveobj(main, exe, "executable", cmapper.register_mappers2, link_flags)
+else
+  regentlib.start(main, cmapper.register_mappers2)
+end
