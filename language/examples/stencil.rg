@@ -168,6 +168,7 @@ end
 local RADIUS = 2
 local stencil = make_stencil(RADIUS)
 
+__demand(__cuda)
 task increment(points : region(ispace(int2d), point))
 where reads writes(points.input) do
   for i in points do
