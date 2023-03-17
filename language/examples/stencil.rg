@@ -200,7 +200,7 @@ end
 
 task main()
   var nbloated : int64 = 12 -- Grid size along each dimension, including border.
-  var nt : int64 = 4
+  var nt : int64 = 8
   var tsteps : int64 = 10
   var init : int64 = 1000
 
