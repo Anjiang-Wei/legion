@@ -151,7 +151,8 @@ local function make_stencil_pattern(points, index, off_x, off_y, radius)
 end
 
 local function make_stencil(radius)
-  local task st(private : region(ispace(int2d), point), ghost : region(ispace(int2d), point))
+  local __demand(__cuda)
+        task stencil(private : region(ispace(int2d), point), ghost : region(ispace(int2d), point))
   where reads writes(private.output), reads(ghost.input) do
     for i in private do
       private[i].output = private[i].output +
@@ -161,7 +162,7 @@ local function make_stencil(radius)
         [make_stencil_pattern(ghost, i,  0,  1, radius)]
     end
   end
-  return st
+  return stencil
 end
 
 local RADIUS = 2
