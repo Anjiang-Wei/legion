@@ -26,7 +26,7 @@ import "regent"
 local common = require("stencil_common")
 
 local DTYPE = double
-local RADIUS = 20
+local RADIUS = 2
 local USE_FOREIGN = (os.getenv('USE_FOREIGN') or '0') == '1'
 
 local use_python_main = rawget(_G, "stencil_use_python_main") == true
@@ -139,6 +139,7 @@ local max = regentlib.fmax
 
 fspace point {
   input : DTYPE,
+  input1 : DTYPE,
   output : DTYPE,
 }
 
@@ -380,7 +381,7 @@ local function make_stencil(radius)
                      times : region(ispace(int1d), timestamp),
                      print_ts : bool)
   where
-    reads writes(private.{input, output}, times),
+    reads writes(private.{input, input1, output}, times),
     reads(xm.input, xp.input, ym.input, yp.input)
   do
     if print_ts then
@@ -454,7 +455,7 @@ task increment(private : region(ispace(int2d), point),
                yp : region(ispace(int2d), point),
                times : region(ispace(int1d), timestamp),
                print_ts : bool)
-where reads writes(private.input, xm.input, xp.input, ym.input, yp.input, times) do
+where reads writes(private.{input,input1}, xm.input, xp.input, ym.input, yp.input, times) do
   [make_increment_interior(private, exterior)]
   for i in xm do i.input += 1 end
   for i in xp do i.input += 1 end
