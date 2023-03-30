@@ -26,7 +26,7 @@ import "regent"
 local common = require("stencil_common")
 
 local DTYPE = double
-local RADIUS = 2
+local RADIUS = 20
 local USE_FOREIGN = (os.getenv('USE_FOREIGN') or '0') == '1'
 
 local use_python_main = rawget(_G, "stencil_use_python_main") == true
