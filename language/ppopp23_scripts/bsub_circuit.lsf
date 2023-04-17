@@ -1,0 +1,64 @@
+#!/bin/bash
+#BSUB -alloc_flags atsdisable
+
+numnodes=$(( ($LSB_DJOB_NUMPROC - 1) / 40))
+numgpus=4
+
+echo Num nodes: $numnodes
+echo Job id: $LSB_JOBID
+
+module load gcc/7.3.1
+module load cmake/3.14.5
+module load cuda/11.7.0
+
+root_dir="$PWD"
+export LD_LIBRARY_PATH="$PWD"
+
+repeat=5
+
+# export LEGION_BACKTRACE=1
+# Lassen-specific -ll:csize 150000
+oricmd=" -pps 10 -prune 30 -hl:sched 1024 -ll:gpu ${numgpus} -ll:util 2 -ll:bgwork 2 -ll:csize 150000 -ll:fsize 15000 -ll:zsize 2048 -ll:rsize 512 -ll:gsize 0 -level 5 -dm:replicate 1 -dm:same_address_space -dm:memoize -lg:no_fence_elision -lg:parallel_replay 2 "
+
+dslcmd=$oricmd" -dslmapper -mapping $root_dir/circuit_mappings -tm:select_source_by_bandwidth -tm:use_semantic_name "
+
+ori_wrapper=$oricmd" -lg:inorder -wrapper -level mapper=debug -logfile oriwrapper_${numnodes}_${numgpus}_%.wrapper "
+dsl_wrapper=$dslcmd" -lg:inorder -wrapper -level mapper=debug nsmapper=debug -logfile dslwrapper_${numnodes}_${numgpus}_%.wrapper "
+
+ori_prof=$oricmd" -lg:prof ${numnodes} -lg:prof_logfile oriprof_circuit_${numnodes}_${numgpus}_%.gz "
+dsl_prof=$dslcmd" -lg:prof ${numnodes} -lg:prof_logfile dslprof_circuit_${numnodes}_${numgpus}_%.gz "
+
+if [[ ! -d ori ]]; then mkdir ori; fi
+pushd ori
+
+for n in $numnodes; do
+  if (( n < 16 )); then
+    LEGION_BACKTRACE=1 jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/circuit" -npp 5000 -wpp 20000 -l 50 -p $(( $n * 40 )) $oricmd
+    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/circuit" -npp 5000 -wpp 20000 -l 50 -p $(( $n * 40 )) $ori_wrapper
+    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/circuit" -npp 5000 -wpp 20000 -l 50 -p $(( $n * 40 )) $ori_prof
+  fi
+  for (( r=1; r <= ${repeat}; r++)); do
+    echo "Running $n""x${numgpus}_r${r}"
+    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/circuit" -npp 5000 -wpp 20000 -l 50 -p $(( $n * 40 )) $oricmd | tee out_"$n"x"${numgpus}"_r"$r".log
+  done
+done
+
+popd
+
+if [[ ! -d dsl ]]; then mkdir dsl; fi
+pushd dsl
+
+for n in $numnodes; do
+  if (( n < 16 )); then
+    LEGION_BACKTRACE=1 jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/circuit" -npp 5000 -wpp 20000 -l 50 -p $(( $n * 40 )) $dslcmd
+    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/circuit" -npp 5000 -wpp 20000 -l 50 -p $(( $n * 40 )) $dsl_wrapper
+    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/circuit" -npp 5000 -wpp 20000 -l 50 -p $(( $n * 40 )) $dsl_prof
+  fi
+  for (( r=1; r <= ${repeat}; r++)); do
+    echo "Running $n""x${numgpus}_r${r}"
+    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/circuit" -npp 5000 -wpp 20000 -l 50 -p $(( $n * 40 )) $dslcmd | tee out_"$n"x"${numgpus}"_r"$r".log
+  done
+done
+
+popd
+echo "bsub_circuit.lsf finishes!"
