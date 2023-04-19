@@ -397,8 +397,10 @@ primary_variant2:add_layout_constraint(
     regentlib.layout.field_constraint(
       "rw",
       terralib.newlist {
-        regentlib.field_path("in_ptr"),
-        regentlib.field_path("out_ptr"),
+        regentlib.field_path("in_ptr", "__ptr"),
+        regentlib.field_path("in_ptr", "__index"),
+        regentlib.field_path("out_ptr", "__ptr"),
+        regentlib.field_path("out_ptr", "__index"),
         regentlib.field_path("inductance"),
         regentlib.field_path("resistance"),
         regentlib.field_path("wire_cap"),
