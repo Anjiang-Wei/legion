@@ -32,10 +32,8 @@ logcpl=$oricmd" -wrapper -level mapper=debug -logfile wrapper_${nx}_${ny}_${ntx}
 if [[ ! -d part_${nx}_${ny} ]]; then mkdir part_${nx}_${ny}; fi
 pushd part_${nx}_${ny}
 
-if (( n <= 16 )); then
-  jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * ${tile} )) -ny $(( ny * ${tile} )) -ntx ${nx} -nty ${ny} $logori
-  jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * ${tile} )) -ny $(( ny * ${tile} )) -ntx ${ntx} -nty ${nty} $logcpl
-fi
+jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * ${tile} )) -ny $(( ny * ${tile} )) -ntx ${nx} -nty ${ny} $logori
+jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * ${tile} )) -ny $(( ny * ${tile} )) -ntx ${ntx} -nty ${nty} $logcpl
 for (( r=1; r <= ${repeat}; r++)); do
   echo "Running ${nx}_${ny}_r${r}"
   jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( nx * ${tile} )) -ny $(( ny * ${tile} )) -ntx ${nx} -nty ${ny} $oricmd | tee out_${nx}_${ny}_${nx}_${ny}_r${r}.log
