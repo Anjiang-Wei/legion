@@ -38,6 +38,7 @@
 #include <algorithm>
 #include <stdlib.h>
 #include <unistd.h> // sleep for warnings
+#include <stdio.h>
 
 #include <sys/mman.h>
 #ifdef LEGION_USE_CUDA
@@ -52,6 +53,12 @@
 #include "realm/hip/hip_access.h"
 #endif
 #endif
+
+#include <chrono>
+uint64_t timeSinceEpochMillisec() {
+  using namespace std::chrono;
+  return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+}
 
 #define REPORT_DUMMY_CONTEXT(message)                        \
   REPORT_LEGION_ERROR(ERROR_DUMMY_CONTEXT_OPERATION,  message)
@@ -7049,7 +7056,10 @@ namespace Legion {
       // See what if any stealing we should perform
       for (std::map<MapperID,std::pair<MapperManager*,bool> >::const_iterator
             it = mappers.begin(); it != mappers.end(); it++)
+      {
+        printf("startup_mappers invoke perform_stealing from mapper_id %d\n", (int) it->first);
         it->second.first->perform_stealing(stealing_targets);
+      }
       if (!stealing_targets.empty())
         runtime->send_steal_request(stealing_targets, local_proc);
     }
@@ -7310,15 +7320,20 @@ namespace Legion {
                                            const std::vector<MapperID> &thieves)
     //--------------------------------------------------------------------------
     {
+      printf("handling a steal request on processor %d from processor %d\n",
+              local_proc.id, thief.id);
+      std::cout << "timestamp for process_steal_request: " << timeSinceEpochMillisec() << std::endl;
       log_run.spew("handling a steal request on processor " IDFMT " "
                          "from processor " IDFMT "", local_proc.id,thief.id);
       // Iterate over the task descriptions, asking the appropriate mapper
       // whether we can steal the task
       std::set<TaskOp*> stolen;
       std::vector<MapperID> successful_thiefs;
+      printf("thieves.size() = %d\n", (int) thieves.size());
       for (std::vector<MapperID>::const_iterator steal_it = thieves.begin();
             steal_it != thieves.end(); steal_it++)
       {
+        printf("enter const_iterator steal_it = thieves.begin()\n");
         const MapperID stealer = *steal_it;
         // Handle a race condition here where some processors can 
         // issue steal requests to another processor before the mappers 
@@ -7334,6 +7349,7 @@ namespace Legion {
         // Need to iterate until we get access to the queue
         do
         {
+          printf("enter do while loop queue_copy_ready\n");
           if (queue_copy_ready.exists() && !queue_copy_ready.has_triggered())
           {
             queue_copy_ready.wait();
@@ -7343,15 +7359,21 @@ namespace Legion {
           MapperState &map_state = mapper_states[*steal_it];
           if (!map_state.queue_guard)
           {
+            printf("pass !map_state.queue_guard\n");
             // If we don't have a deferral event then grab our
             // ready queue of tasks so we can try to map them
             // this will also prevent them from being stolen
             if (!map_state.ready_queue.empty())
             {
+              printf("pass !map_state.ready_queue.empty()\n");
               map_state.ready_queue.swap(queue_copy);
               // Set the queue guard so no one else tries to
               // read the ready queue while we've checked it out
               map_state.queue_guard = true;
+            }
+            else
+            {
+              printf("no swap: fail !map_state.ready_queue.empty()\n");
             }
           }
           else
@@ -7363,8 +7385,14 @@ namespace Legion {
             queue_copy_ready = map_state.queue_waiter;
           }
         } while (queue_copy_ready.exists());
+        printf("end do while loop\n");
+        printf("queue_copy.size() = %d\n", (int) queue_copy.size());
         if (queue_copy.empty())
+        {
+          printf("queue_copy.empty() is true, continue\n");
+          mapper->process_failed_steal(thief);
           continue;
+        }
         Mapper::StealRequestInput input;
         input.thief_proc = thief;
         for (std::list<TaskOp*>::const_iterator it = 
@@ -7375,8 +7403,12 @@ namespace Legion {
         }
         Mapper::StealRequestOutput output;
         // Ask the mapper what it wants to allow be stolen
+        printf("before !input.stealable_tasks.empty()\n");
         if (!input.stealable_tasks.empty())
+        {
+          printf("inside !input.stealable_tasks.empty()\n");
           mapper->invoke_permit_steal_request(&input, &output);
+        }
         // See which tasks we can succesfully steal
         std::vector<TaskOp*> local_stolen;
         if (!output.stolen_tasks.empty())
@@ -7464,6 +7496,7 @@ namespace Legion {
         else
           mapper->process_failed_steal(thief);
       }
+      printf("inside process_steal_request stolen.empty() = %d\n", (int) stolen.empty());
       if (!stolen.empty())
       {
 #ifdef DEBUG_LEGION
@@ -7495,6 +7528,8 @@ namespace Legion {
       mapper->process_advertisement(advertiser);
       // See if this mapper would like to try stealing again
       std::multimap<Processor,MapperID> stealing_targets;
+      printf("in process_advertisement invoke perform_stealing from advertiser (processor %d), mid %d\n",
+             (int) advertiser.id, (int) mid);
       mapper->perform_stealing(stealing_targets);
       if (!stealing_targets.empty())
         runtime->send_steal_request(stealing_targets, local_proc);
@@ -7633,7 +7668,11 @@ namespace Legion {
         } while (queue_copy_ready.exists());
         // Do this before anything else in case we don't have any tasks
         if (!stealing_disabled)
+        {
+          printf("in perform_mapping_operations invoke perform_stealing mapper_id %d\n",
+            (int) map_id);
           mapper->perform_stealing(stealing_targets);
+        }
         // Nothing to do if there are no tasks on the queue
         if (queue_copy.empty())
           continue;
@@ -7837,6 +7876,7 @@ namespace Legion {
       std::set<Processor> failed_waiters;
       MapperManager *mapper = find_mapper(map_id);
       mapper->perform_advertisements(failed_waiters);
+      printf("inside issue_advertisements, failed_waiters.size() = %d\n", (int) failed_waiters.size());
       if (!failed_waiters.empty())
         runtime->send_advertisements(failed_waiters, map_id, local_proc);
     }
@@ -19366,6 +19406,7 @@ namespace Legion {
     void Runtime::replace_default_mapper(Mapper *mapper, Processor proc)
     //--------------------------------------------------------------------------
     {
+      printf("inside replace_default_mapper\n");
       // If we have a custom mapper then silently ignore this
       if (!replay_file.empty() || enable_test_mapper)
       {
@@ -21101,23 +21142,30 @@ namespace Legion {
                                             MapperID map_id, Processor source)
     //--------------------------------------------------------------------------
     {
+      printf("inside send_advertisements, targets.size()=%d\n", (int) targets.size());
       std::set<MessageManager*> already_sent;
       for (std::set<Processor>::const_iterator it = targets.begin();
             it != targets.end(); it++)
       {
+        printf("target iterating processor_id %d\n", it->id);
         std::map<Processor,ProcessorManager*>::const_iterator finder = 
           proc_managers.find(*it);
         if (finder != proc_managers.end())
         {
           // still local
+          printf("finder succeeds, still local, invoke finder->second->process_advertisement\n");
           finder->second->process_advertisement(source, map_id);
         }
         else
         {
+          printf("finder fails, remote\n");
           // otherwise remote, check to see if we already sent it
           MessageManager *messenger = find_messenger(*it);
           if (already_sent.find(messenger) != already_sent.end())
+          {
+            printf("already_sent found, continue\n");
             continue;
+          }
           Serializer rez;
           {
             RezCheck z(rez);
@@ -23128,9 +23176,13 @@ namespace Legion {
       MapperID map_id;
       derez.deserialize(map_id);
       // Just advertise it to all the managers
+      printf("inside handle_advertisement before invoke process_advertisement, \
+            proc_managers.size() = %d, source proc_id = %d, map_id = %d\n",
+            (int) proc_managers.size(), (int) source.id, (int) map_id);
       for (std::map<Processor,ProcessorManager*>::const_iterator it = 
             proc_managers.begin(); it != proc_managers.end(); it++)
       {
+        printf("invoke process_advertisement inside handle_advertisement\n");
         it->second->process_advertisement(source, map_id);
       }
     }

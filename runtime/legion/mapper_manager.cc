@@ -1425,6 +1425,9 @@ namespace Legion {
                               Mapper::SelectStealingOutput,
                               &MapperManager::invoke_select_steal_targets>
                                 continuation(this, input, output, info);
+          // the following printf never reaches, which is good
+          printf("continuation_precondition defer in invoke_select_steal_targets processor_id %d, mapper_id %d\n",
+                (int) processor.id, (int) mapper_id);
           continuation.defer(runtime, continuation_precondition);
           return;
         }
