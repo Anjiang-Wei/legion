@@ -44,9 +44,11 @@ def main():
     paths = glob.glob('*/*.log')
     res = {}
     for path in paths:
-        if parse_basename(os.path.basename(path)) not in res:
-            res[parse_basename(os.path.basename(path))] = []
-        res[parse_basename(os.path.basename(path))].append(parse_content(path))
+        # the first four integers:
+        file_id = parse_basename(os.path.basename(path))[:4]
+        if file_id not in res:
+            res[file_id] = []
+        res[file_id].append(parse_content(path))
     avg = compute_average(res)
     pprint.pprint(avg)
     
