@@ -59,3 +59,4 @@ if __name__ == "__main__":
     #         factor_y = int(256 / factor_x)
     #         print(gpus, factor_x, factor_y, compute_ours(factor_x, factor_y, gpus))
     gen()
+    print("Please split the node 64 run!")
