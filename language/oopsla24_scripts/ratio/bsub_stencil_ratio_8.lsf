@@ -16,7 +16,8 @@ export LD_LIBRARY_PATH="$PWD"
 
 repeat=5
 
-tile=10000
+tile=625
+# 625 * 625 * 256 = 10000 * 10000
 
 run() {
   local nx=$1;
