@@ -36,7 +36,7 @@ def parse_content(path):
 
 def compute_average(content):
     for key in content:
-        assert len(content[key] == repeat)
+        assert len(content[key]) == repeat
         content[key] = sum(content[key]) / len(content[key])
     # sort the result by node number, then domain_x
     new_content = {key: val for key, val in sorted(content.items(), key = lambda x: (x[0][0], x[0][1]))}
