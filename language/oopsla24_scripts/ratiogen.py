@@ -38,12 +38,16 @@ def compute_ours(factor_x, factor_y, gpus):
             minimum_diff = abs(ratio - optimal_ratio)
     return minimum_factor
 
-def gen():
+def gen(strong=False):
     tile = 1250
     for gpus in [4, 8, 16, 32, 64, 128, 256]:
         assert gpus % 4 == 0
         nodes = int(gpus / 4)
-        with open(f"ratio/bsub_stencil_ratio_{nodes}.lsf", "w") as fout:
+        if strong == False:
+            fname = f"ratio/bsub_stencil_ratio_{nodes}.lsf"
+        else:
+            fname = f"ratio2/bsub_stencil_ratio2_{nodes}.lsf"
+        with open(fname, "w") as fout:
             fout.writelines(template)
             for factor_x in [1, 2, 4, 8, 16, 32, 64, 128, 256]:
                 factor_y = int(256 / factor_x)
@@ -51,12 +55,13 @@ def gen():
                 chapel_x, chapel_y = chapel[gpus]
                 assert chapel_x * chapel_y == our_x * our_y and our_x * our_y == gpus
                 fout.write(f"run {factor_x} {factor_y} {chapel_x} {chapel_y} {our_x} {our_y} {tile}\n")
-        tile = math.ceil(tile * math.sqrt(2))
+        if strong == False:
+            tile = math.ceil(tile * math.sqrt(2))
 
 if __name__ == "__main__":
     # for gpus in [4, 8, 16, 32, 64, 128, 256]:
     #     for factor_x in [1, 2, 4, 8, 16, 32, 64, 128, 256]:
     #         factor_y = int(256 / factor_x)
     #         print(gpus, factor_x, factor_y, compute_ours(factor_x, factor_y, gpus))
-    gen()
+    gen(True)
     print("Please split the node 64 run!")
