@@ -45,7 +45,7 @@ def gen():
         nodes = int(gpus / 4)
         with open(f"map/bsub_stencil_map_{nodes}.lsf", "w") as fout:
             fout.writelines(template)
-            for factor_x in [1, 2, 4, 8, 16, 32, 64, 128, 256]:
+            for factor_x in [4, 8, 16, 32, 64]:
                 factor_y = int(256 / factor_x)
                 our_x, our_y = compute_ours(factor_x, factor_y, gpus)
                 chapel_x, chapel_y = chapel[gpus]

@@ -462,7 +462,7 @@ static void create_mappers2(Machine machine, Runtime *runtime, const std::set<Pr
   }
 
   LinearShardingFunctor *sharding_functor = new LinearShardingFunctor(blockfactor);
-  Runtime::preregister_sharding_functor(SID_LINEAR, sharding_functor);
+  runtime->register_sharding_functor(SID_LINEAR, sharding_functor);
 
   std::vector<Processor>* procs_list = new std::vector<Processor>();
 
