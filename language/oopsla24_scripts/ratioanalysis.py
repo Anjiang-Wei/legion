@@ -53,16 +53,18 @@ def parse_basename(filename):
     assert domain_x == domain_x_
     assert domain_y == domain_y_
     assert node_num * 4 == gpu_x * gpu_y
+    is_chapel = False
+    is_ours = False
     if chapel[node_num * 4] == [gpu_x, gpu_y]:
         is_chapel = True
     if compute_ours(domain_x, domain_y, node_num * 4) == (gpu_x, gpu_y):
         is_ours = True
     if is_chapel == True and is_ours == True:
-        tag = "both"
+        tag = "b"
     elif is_chapel:
-        tag = "chapel"
+        tag = "c"
     elif is_ours:
-        tag = "ours"
+        tag = "o"
     else:
         assert False
     return (node_num, domain_x, domain_y, gpu_x, gpu_y, repetition, tag)
@@ -94,7 +96,7 @@ def main():
     res = {}
     for path in paths:
         # remove the repetition number
-        file_id = parse_basename(path)[:-2] + parse_basename(path)[-1]
+        file_id = parse_basename(path)[:-2] + tuple(parse_basename(path)[-1])
         if file_id not in res:
             res[file_id] = []
         res[file_id].append(parse_content(path))
@@ -102,7 +104,7 @@ def main():
     pprint.pprint(avg)
     
     out = csv.writer(open("ratio.csv", "w"))
-    out.writerow(['node_num', 'domain_x', 'domain_y', 'gpu_x', 'gpu_y', 'time', 'tag'])
+    out.writerow(['node_num', 'domain_x', 'domain_y', 'gpu_x', 'gpu_y', 'tag', 'time'])
     out.writerows(avg)
 
 if __name__ == '__main__':
