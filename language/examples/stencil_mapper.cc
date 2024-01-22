@@ -193,6 +193,10 @@ public:
   void stencil_create_copy_instance(MapperContext ctx, const Copy &copy,
                                     const RegionRequirement &req, unsigned index,
                                     std::vector<PhysicalInstance> &instances);
+  virtual void slice_task(const MapperContext ctx,
+                          const Task &task,
+                          const SliceTaskInput &input,
+                          SliceTaskOutput &output) override;
 private:
   std::vector<Processor>& procs_list;
   int blockfactor;
@@ -206,6 +210,30 @@ StencilMapper::StencilMapper(MapperRuntime *rt, Machine machine, Processor local
   , procs_list(*_procs_list),
     blockfactor(blockfactor)
 {
+}
+
+
+void StencilMapper::slice_task(const MapperContext      ctx,
+                                const Task&              task,
+                                const SliceTaskInput&    input,
+                                      SliceTaskOutput&   output)
+//--------------------------------------------------------------------------
+{
+  if ((blockfactor != -1) &&(task.get_task_name() == "stencil" || task.get_task_name() == "increment"))
+  {
+    output.slices.resize(input.domain.get_volume());
+    unsigned idx = 0;
+    Rect<1> rect = input.domain;
+    for (PointInRectIterator<1> pir(rect); pir(); pir++, idx++)
+    {
+      Rect<1> slice(*pir, *pir);
+      output.slices[idx] = TaskSlice(slice,
+        local_gpus[idx % local_gpus.size()],
+        false/*recurse*/, false/*stealable*/);
+    }
+    return;
+  }
+  DefaultMapper::slice_task(ctx, task, input, output);
 }
 
 void StencilMapper::select_sharding_functor(
