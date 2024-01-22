@@ -1,5 +1,6 @@
 import pprint
 import math
+import sys
 # node_num,domain_x,domain_y,gpu_x,gpu_y,tag,time
 # 1,1,256,1,4,o,0.2542
 # 1,1,256,2,2,c,0.261
@@ -61,6 +62,8 @@ def report_avg_imp():
         print(f"{node_num}: {total_imp**(1.0 / len(domain_enum))}")
 
 if __name__ == "__main__":
+    if len(sys.argv) == 2:
+        ratio_file = sys.argv[1]
     readfile()
     compute_improve()
     report_avg_imp()
