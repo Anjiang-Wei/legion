@@ -33,7 +33,7 @@ enum ShardingFunctorIDs {
 
 class LinearShardingFunctor : public ShardingFunctor {
 public:
-  LinearShardingFunctor();
+  LinearShardingFunctor(int blockfactor);
   LinearShardingFunctor(const LinearShardingFunctor &rhs);
   virtual ~LinearShardingFunctor(void);
 public:
@@ -46,11 +46,13 @@ public:
   virtual ShardID shard(const DomainPoint &point,
                         const Domain &full_space,
                         const size_t total_shards);
+  int blockfactor;
 };
 
 //--------------------------------------------------------------------------
-LinearShardingFunctor::LinearShardingFunctor()
-  : ShardingFunctor()
+LinearShardingFunctor::LinearShardingFunctor(int blockfactor)
+  : ShardingFunctor(),
+    blockfactor(blockfactor)
 //--------------------------------------------------------------------------
 {
 }
@@ -106,9 +108,24 @@ ShardID LinearShardingFunctor::shard(const DomainPoint &point,
   {
     case 1:
       {
-        const DomainT<1,coord_t> is = full_space;
-        const Point<1,coord_t> p1 = point;
-        return linearize_point<1>(is, p1)  * total_shards / domain_size;
+        if (blockfactor == -1)
+        {
+          const DomainT<1,coord_t> is = full_space;
+          const Point<1,coord_t> p1 = point;
+          return linearize_point<1>(is, p1)  * total_shards / domain_size;
+        }
+        else
+        {
+          const DomainT<1,coord_t> is = full_space;
+          const Point<1,coord_t> p1 = point;
+          int ipoint = (int)linearize_point<1>(is, p1);
+          int ipoint_x = ipoint % blockfactor;
+          int ipoint_y = ipoint / blockfactor;
+          int node_factor = blockfactor / 2;
+          int node_x = ipoint_x / 2;
+          int node_y = ipoint_y / 2;
+          return node_factor * node_y + node_x;
+        }
       }
     case 2:
       {
@@ -139,7 +156,8 @@ class StencilMapper : public DefaultMapper
 public:
   StencilMapper(MapperRuntime *rt, Machine machine, Processor local,
                 const char *mapper_name,
-                std::vector<Processor>* procs_list);
+                std::vector<Processor>* procs_list,
+                int blockfactor);
   virtual void select_sharding_functor(
                                  const MapperContext                ctx,
                                  const Task&                        task,
@@ -177,13 +195,16 @@ public:
                                     std::vector<PhysicalInstance> &instances);
 private:
   std::vector<Processor>& procs_list;
+  int blockfactor;
 };
 
 StencilMapper::StencilMapper(MapperRuntime *rt, Machine machine, Processor local,
                              const char *mapper_name,
-                             std::vector<Processor>* _procs_list)
+                             std::vector<Processor>* _procs_list,
+                             int blockfactor)
   : DefaultMapper(rt, machine, local, mapper_name)
-  , procs_list(*_procs_list)
+  , procs_list(*_procs_list),
+    blockfactor(blockfactor)
 {
 }
 
@@ -367,6 +388,7 @@ void StencilMapper::stencil_create_copy_instance(MapperContext ctx,
 static void create_mappers2(Machine machine, Runtime *runtime, const std::set<Processor> &local_procs)
 {
   // log_mapper.debug("Inside create_mappers local_procs.size() = %ld", local_procs.size());
+  int blockfactor = -1;
   bool use_logging_wrapper = false;
   bool use_dsl_mapper = false;
   auto args = Runtime::get_input_args();
@@ -396,6 +418,10 @@ static void create_mappers2(Machine machine, Runtime *runtime, const std::set<Pr
     if (strcmp(args.argv[idx], "-tm:select_source_by_bandwidth") == 0)
     {
       NSMapper::select_source_by_bandwidth = true;
+    }
+    if (strcmp(args.argv[idx], "-blockmapper") == 0)
+    {
+      blockfactor = atoi(args.argv[idx + 1]);
     }
     if (strcmp(args.argv[idx], "-dslmapper") == 0)
     {
@@ -435,6 +461,9 @@ static void create_mappers2(Machine machine, Runtime *runtime, const std::set<Pr
     return;
   }
 
+  LinearShardingFunctor *sharding_functor = new LinearShardingFunctor(blockfactor);
+  Runtime::preregister_sharding_functor(SID_LINEAR, sharding_functor);
+
   std::vector<Processor>* procs_list = new std::vector<Processor>();
 
   Machine::ProcessorQuery procs_query(machine);
@@ -448,7 +477,7 @@ static void create_mappers2(Machine machine, Runtime *runtime, const std::set<Pr
   {
     StencilMapper* mapper = new StencilMapper(runtime->get_mapper_runtime(),
                                               machine, *it, "stencil_mapper",
-                                              procs_list);
+                                              procs_list, blockfactor);
     if (use_logging_wrapper)
     {
       runtime->replace_default_mapper(new Mapping::LoggingWrapper(mapper), *it);
@@ -462,8 +491,5 @@ static void create_mappers2(Machine machine, Runtime *runtime, const std::set<Pr
 
 void register_mappers2()
 {
-  LinearShardingFunctor *sharding_functor = new LinearShardingFunctor();
-  Runtime::preregister_sharding_functor(SID_LINEAR, sharding_functor);
-
   Runtime::add_registration_callback(create_mappers2);
 }
