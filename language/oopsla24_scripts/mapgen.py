@@ -45,10 +45,12 @@ def gen():
         nodes = int(gpus / 4)
         with open(f"map/bsub_stencil_map_{nodes}.lsf", "w") as fout:
             fout.writelines(template)
-            for factor_x in [4, 8, 16, 32, 64]:
+            for factor_x in [1, 2, 4, 8, 16, 32, 64, 128, 256]:
                 factor_y = int(256 / factor_x)
                 our_x, our_y = compute_ours(factor_x, factor_y, gpus)
                 chapel_x, chapel_y = chapel[gpus]
+                if our_x <= 2 or our_y == 1: # skip because 2D block and 1D block are the same
+                    continue
                 assert chapel_x * chapel_y == our_x * our_y and our_x * our_y == gpus
                 fout.write(f"run {factor_x} {factor_y} {chapel_x} {chapel_y} {our_x} {our_y} {tile}\n")
         # tile = math.ceil(tile * math.sqrt(2))
