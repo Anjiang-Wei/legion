@@ -219,7 +219,8 @@ void StencilMapper::slice_task(const MapperContext      ctx,
                                       SliceTaskOutput&   output)
 //--------------------------------------------------------------------------
 {
-  if ((blockfactor != -1) &&(task.get_task_name() == "stencil" || task.get_task_name() == "increment"))
+  if ((blockfactor != -1) && (std::string(task.get_task_name()) == std::string("stencil") 
+                          ||  std::string(task.get_task_name()) == std::string("increment")))
   {
     output.slices.resize(input.domain.get_volume());
     unsigned idx = 0;
@@ -230,6 +231,7 @@ void StencilMapper::slice_task(const MapperContext      ctx,
       output.slices[idx] = TaskSlice(slice,
         local_gpus[idx % local_gpus.size()],
         false/*recurse*/, false/*stealable*/);
+        printf("use idx = %d GPU\n", idx);
     }
     return;
   }
