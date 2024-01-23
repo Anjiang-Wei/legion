@@ -224,12 +224,11 @@ void StencilMapper::slice_task(const MapperContext      ctx,
   {
     output.slices.resize(input.domain.get_volume());
     unsigned idx = 0;
-    Rect<1> rect = input.domain;
-    for (PointInRectIterator<1> pir(rect); pir(); pir++, idx++)
+    for (Domain::DomainPointIterator itr(input.domain); itr; itr++, idx++)
     {
-      Rect<1> slice(*pir, *pir);
+      Rect<1> slice(*itr, *itr);
       output.slices[idx] = TaskSlice(slice,
-        local_gpus[idx % local_gpus.size()],
+        local_gpus[idx % procs_list.size()],
         false/*recurse*/, false/*stealable*/);
         // printf("use idx = %d GPU\n", idx);
     }
