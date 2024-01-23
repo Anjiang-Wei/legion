@@ -231,7 +231,7 @@ void StencilMapper::slice_task(const MapperContext      ctx,
       output.slices[idx] = TaskSlice(slice,
         local_gpus[idx % local_gpus.size()],
         false/*recurse*/, false/*stealable*/);
-        printf("use idx = %d GPU\n", idx);
+        // printf("use idx = %d GPU\n", idx);
     }
     return;
   }
