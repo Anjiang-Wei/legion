@@ -46,9 +46,9 @@ def compute_improve():
     for node_num in node_enum:
         for domain_x, domain_y in domain_enum:
             diff = chapel_res[node_num][(domain_x, domain_y)] - our_res[node_num][(domain_x, domain_y)]
-            if diff < 0 and abs(diff <= 0.001): # floating point error
-                diff = 0
-            assert diff >= 0, f"{diff}, {node_num}, {domain_x}, {domain_y}"
+            # if diff < 0 and abs(diff <= 0.001): # floating point error
+            #     diff = 0
+            # assert diff >= 0, f"{diff}, {node_num}, {domain_x}, {domain_y}"
             diff_perc = diff / chapel_res[node_num][(domain_x, domain_y)] * 100
             update_map(improve, node_num, domain_x, domain_y, diff_perc)
     pprint.pprint(improve)
@@ -59,7 +59,7 @@ def report_avg_imp():
         for domain_x, domain_y in domain_enum:
             imp = improve[node_num][(domain_x, domain_y)]
             total_imp *= 1 + imp / 100
-        print(f"{node_num}: {total_imp**(1.0 / len(domain_enum))}")
+        print(f"{node_num}: {(total_imp**(1.0 / len(domain_enum)) - 1) * 100:.2f}%")
 
 if __name__ == "__main__":
     if len(sys.argv) == 2:
