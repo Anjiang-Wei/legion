@@ -67,7 +67,7 @@ def main():
     avg = compute_average(res)
     pprint.pprint(avg)
     
-    out = csv.writer(open("ratio.csv", "w"))
+    out = csv.writer(open("map.csv", "w"))
     out.writerow(['node_num', 'domain_x', 'domain_y', 'gpu_x', 'gpu_y', 'tag', 'time'])
     out.writerows(avg)
 
