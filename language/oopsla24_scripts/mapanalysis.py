@@ -25,9 +25,9 @@ def parse_basename(filename):
     assert domain_y == domain_y_
     assert node_num * 4 == gpu_x * gpu_y
     if ori_map == "map":
-        tag = "c"
-    elif ori_map == "ori":
         tag = "o"
+    elif ori_map == "ori":
+        tag = "c"
     else:
         assert False, ori_map
     return (node_num, domain_x, domain_y, gpu_x, gpu_y, repetition, tag)
