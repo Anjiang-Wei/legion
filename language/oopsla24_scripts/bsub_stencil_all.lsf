@@ -36,6 +36,7 @@ run() {
   if [[ ! -d all_${n}_${domain_x}_${domain_y}_${tile} ]]; then mkdir all_${n}_${domain_x}_${domain_y}_${tile}; fi
   pushd all_${n}_${domain_x}_${domain_y}_${tile}
 
+  echo $logcmd
   jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( domain_x * ${tile} )) -ny $(( domain_y * ${tile} )) -ntx ${part_x} -nty ${part_y} $logcmd
 
   for (( r=1; r <= ${repeat}; r++)); do
