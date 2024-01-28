@@ -14,10 +14,10 @@ repeat = 20
 # all_2_1_256_1767   /out_1_256_1767_1_8_o_1_r20.log
 # all_node_dx_dy_tile/out_dx_dy_tile_px_py_{c|o}_{1|2}_r{1-20}.log
 
-_filename_re = re.compile(r'all_([0-9]+)_([0-9]+)_([0-9]+)_([0-9+])/out_([0-9]+)_([0-9]+)_([0-9]+)_([0-9]+)_([0-9]+)_(c|o)_(1|2)_r([0-9]+)[.]log')
+_filename_re = re.compile(r'all_([0-9]+)_([0-9]+)_([0-9]+)_([0-9]+)/out_([0-9]+)_([0-9]+)_([0-9]+)_([0-9]+)_([0-9]+)_(c|o)_(1|2)_r([0-9]+)[.]log')
 def parse_basename(filename):
     match = re.match(_filename_re, filename)
-    assert match is not None
+    assert match is not None, filename
     assert len(match.groups()) == 12
     node, dx, dy, tile, dx_, dy_, tile_, px, py, c_o, dim, repetition = match.groups()
     assert dx == dx_ and dy == dy_ and tile == tile_, f"{node} mismatches for {dx} {dy} {tile} {dx_} {dy_} {tile_}"
