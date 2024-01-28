@@ -38,8 +38,7 @@ def compute_ours(factor_x, factor_y, gpus):
             minimum_diff = abs(ratio - optimal_ratio)
     return minimum_factor
 
-def gen():
-    tile_start = 1250
+def gen(tile_start=1250):
     tile = tile_start
     # {domain_x}_${domain_y}_${tile}_${part_x}_${part_y}_${c_o}_${dim}
     idx = 1
@@ -60,5 +59,9 @@ def gen():
         tile = math.floor(tile_start * (2 ** (0.5 * idx)))
         idx += 1
 
+def genall():
+    for tile_start in [50, 100, 250, 500, 750, 1000, 1250]:
+        gen(tile_start)
+
 if __name__ == "__main__":
-    gen()
+    genall()
