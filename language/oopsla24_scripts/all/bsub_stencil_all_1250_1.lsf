@@ -36,6 +36,7 @@ run() {
   if [[ ! -d all_${n}_${domain_x}_${domain_y}_${tile} ]]; then mkdir all_${n}_${domain_x}_${domain_y}_${tile}; fi
   pushd all_${n}_${domain_x}_${domain_y}_${tile}
 
+  echo $logcmd
   jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx $(( domain_x * ${tile} )) -ny $(( domain_y * ${tile} )) -ntx ${part_x} -nty ${part_y} $logcmd
 
   for (( r=1; r <= ${repeat}; r++)); do
@@ -48,57 +49,21 @@ run() {
 
 # 1250 * 1250 * 256 = 10000 * 10000 * 4
 # run domain_x domain_y tile part_x part_y c_o dim
-run 1 256 1418 1    32    o  1 
-run 1 256 1418 1    32    o  2 
-run 1 256 1418 8 4 c  1 
-run 1 256 1418 1    32    o  1 
-run 1 256 1418 1    32    o  2 
-run 1 256 1418 8 4 c  1 
-run 2 128 1418 1    32    o  1 
-run 2 128 1418 1    32    o  2 
-run 2 128 1418 8 4 c  1 
-run 2 128 1418 1    32    o  1 
-run 2 128 1418 1    32    o  2 
-run 2 128 1418 8 4 c  1 
-run 4 64 1418 1    32    o  1 
-run 4 64 1418 1    32    o  2 
-run 4 64 1418 8 4 c  1 
-run 4 64 1418 1    32    o  1 
-run 4 64 1418 1    32    o  2 
-run 4 64 1418 8 4 c  1 
-run 8 32 1418 2    16    o  1 
-run 8 32 1418 2    16    o  2 
-run 8 32 1418 8 4 c  1 
-run 8 32 1418 2    16    o  1 
-run 8 32 1418 2    16    o  2 
-run 8 32 1418 8 4 c  1 
-run 16 16 1418 4    8    o  1 
-run 16 16 1418 4    8    o  2 
-run 16 16 1418 8 4 c  1 
-run 16 16 1418 4    8    o  1 
-run 16 16 1418 4    8    o  2 
-run 16 16 1418 8 4 c  1 
-run 32 8 1418 8    4    o  1 
-run 32 8 1418 8    4    o  2 
-run 32 8 1418 8 4 c  1 
-run 32 8 1418 8    4    o  1 
-run 32 8 1418 8    4    o  2 
-run 32 8 1418 8 4 c  1 
-run 64 4 1418 16    2    o  1 
-run 64 4 1418 16    2    o  2 
-run 64 4 1418 8 4 c  1 
-run 64 4 1418 16    2    o  1 
-run 64 4 1418 16    2    o  2 
-run 64 4 1418 8 4 c  1 
-run 128 2 1418 32    1    o  1 
-run 128 2 1418 32    1    o  2 
-run 128 2 1418 8 4 c  1 
-run 128 2 1418 32    1    o  1 
-run 128 2 1418 32    1    o  2 
-run 128 2 1418 8 4 c  1 
-run 256 1 1418 32    1    o  1 
-run 256 1 1418 32    1    o  2 
-run 256 1 1418 8 4 c  1 
-run 256 1 1418 32    1    o  1 
-run 256 1 1418 32    1    o  2 
-run 256 1 1418 8 4 c  1 
+run 	1	256	1250	1	4	 o 	 1 
+run 	1	256	1250	2	2	 c 	 1 
+run 	2	128	1250	1	4	 o 	 1 
+run 	2	128	1250	2	2	 c 	 1 
+run 	4	64	1250	1	4	 o 	 1 
+run 	4	64	1250	2	2	 c 	 1 
+run 	8	32	1250	1	4	 o 	 1 
+run 	8	32	1250	2	2	 c 	 1 
+run 	16	16	1250	2	2	 o 	 1 
+run 	16	16	1250	2	2	 c 	 1 
+run 	32	8	1250	4	1	 o 	 1 
+run 	32	8	1250	2	2	 c 	 1 
+run 	64	4	1250	4	1	 o 	 1 
+run 	64	4	1250	2	2	 c 	 1 
+run 	128	2	1250	4	1	 o 	 1 
+run 	128	2	1250	2	2	 c 	 1 
+run 	256	1	1250	4	1	 o 	 1 
+run 	256	1	1250	2	2	 c 	 1 

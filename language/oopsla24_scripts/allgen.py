@@ -39,29 +39,26 @@ def compute_ours(factor_x, factor_y, gpus):
     return minimum_factor
 
 def gen():
-    tile = 500
+    tile_start = 1250
+    tile = tile_start
     # {domain_x}_${domain_y}_${tile}_${part_x}_${part_y}_${c_o}_${dim}
+    idx = 1
     for gpus in [4, 8, 16, 32, 64, 128, 256]:
         assert gpus % 4 == 0
         nodes = int(gpus / 4)
-        with open(f"all/bsub_stencil_all_{nodes}.lsf", "w") as fout:
+        with open(f"all/bsub_stencil_all_{tile_start}_{nodes}.lsf", "w") as fout:
             fout.writelines(template)
             for factor_x in [1, 2, 4, 8, 16, 32, 64, 128, 256]:
                 factor_y = int(256 / factor_x)
                 our_x, our_y = compute_ours(factor_x, factor_y, gpus)
                 chapel_x, chapel_y = chapel[gpus]
                 assert chapel_x * chapel_y == our_x * our_y and our_x * our_y == gpus
-                for dim in [1, 2]:
-                    fout.write(f"run {factor_x} {factor_y} {tile} {our_x}    {our_y}    o  1 \n")
-                    fout.write(f"run {factor_x} {factor_y} {tile} {our_x}    {our_y}    o  2 \n")
-                    fout.write(f"run {factor_x} {factor_y} {tile} {chapel_x} {chapel_y} c  1 \n")
-                # if our_x <= 2 or our_y == 1: # skip because 2D block and 1D block are the same
-                #     continue
-        tile = math.ceil(tile * math.sqrt(2))
+                fout.write(f"run \t{factor_x}\t{factor_y}\t{tile}\t{our_x}\t{our_y}\t o \t 1 \n")
+                if our_x > 2 and our_y > 1: # guarantee that 2D block and 1D block are the same
+                    fout.write(f"run \t{factor_x}\t{factor_y}\t{tile}\t{our_x}\t{our_y}\t o \t 2 \n")
+                fout.write(f"run \t{factor_x}\t{factor_y}\t{tile}\t{chapel_x}\t{chapel_y}\t c \t 1 \n")
+        tile = math.floor(tile_start * (2 ** (0.5 * idx)))
+        idx += 1
 
 if __name__ == "__main__":
-    # for gpus in [4, 8, 16, 32, 64, 128, 256]:
-    #     for factor_x in [1, 2, 4, 8, 16, 32, 64, 128, 256]:
-    #         factor_y = int(256 / factor_x)
-    #         print(gpus, factor_x, factor_y, compute_ours(factor_x, factor_y, gpus))
     gen()
