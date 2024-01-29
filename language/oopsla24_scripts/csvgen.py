@@ -39,7 +39,7 @@ def parse_content(path):
 def compute_average(content):
     for key in content:
         if len(content[key]) != repeat:
-            print("content[key] = {content[key]}, != repeat = {repeat}")
+            print(f"content[key] = {content[key]}, != repeat = {repeat}")
         content[key] = median(content[key])
     # sort the result by node number, then domain_x
     new_content = {key: val for key, val in sorted(content.items(), key = lambda x: (x[0][0], x[0][1]))}
@@ -58,7 +58,7 @@ def main():
             res[file_id] = []
         res[file_id].append(parse_content(path))
     avg = compute_average(res)
-    pprint.pprint(avg)
+    # pprint.pprint(avg)
     
     out = csv.writer(open("all.csv", "w"))
     out.writerow(['node', 'dx', 'dy', 'tile', 'px', 'py', 'c_o', 'dim', 'time'])
