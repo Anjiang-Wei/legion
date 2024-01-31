@@ -45,7 +45,7 @@ def gen(tile_start=1250):
     for gpus in [4, 8, 16, 32, 64, 128, 256]:
         assert gpus % 4 == 0
         nodes = int(gpus / 4)
-        with open(f"all/bsub_stencil_all_{tile_start}_{nodes}.lsf", "w") as fout:
+        with open(f"all6/bsub_stencil_all_{tile_start}_{nodes}.lsf", "w") as fout:
             fout.writelines(template)
             for factor_x in [1, 2, 4, 8, 16, 32, 64, 128, 256]:
                 factor_y = int(256 / factor_x)
