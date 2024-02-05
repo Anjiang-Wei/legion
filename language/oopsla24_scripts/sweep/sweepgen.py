@@ -54,7 +54,10 @@ def inter_node(partx, party):
 def gen(node, tile_idx, tile_start):
     tile_current = tile_start * node
     with open(f"swp/bsub_stencil_swp_{node}_{tile_idx}.lsf", "w") as fout:
-        fout.writelines(template)
+        if node >= 64:
+            fout.writelines([line.replace("#BSUB -W 240", "#BSUB -W 360") for line in template])
+        else:
+            fout.writelines(template)
         for ratioidx, ratio in enumerate([1, 2, 4, 8, 16, 32, 64, 128, 256, 512]): # domain_y : domain_x
             domain_x, domain_y = compute_domain(tile_current, ratio)
             our_x, our_y = compute_ours(1, ratio, node * 4)

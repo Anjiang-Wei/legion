@@ -1,5 +1,5 @@
 #!/bin/bash
-#BSUB -W 240
+#BSUB -W 360
 #BSUB -alloc_flags atsdisable
 
 n=$(( ($LSB_DJOB_NUMPROC - 1) / 40))
