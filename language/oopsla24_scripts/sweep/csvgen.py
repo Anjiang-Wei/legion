@@ -21,9 +21,9 @@ def parse_basename(filename):
     assert len(match.groups()) == 15
     node, tileidx, ratioidx, node_, tileidx_, ratioidx_, c_o, dim, tilestart, tilecurrent, domainx, domainy, partx, party, repetition = match.groups()
     assert node == node_ and tileidx == tileidx_ and ratioidx == ratioidx_, filename
-    node, tileidx, ratioidx, c_o, dim, tilestart, tilecurrent, domainx, domainy, partx, party, repetition = list(map(int, \
-    (node, tileidx, ratioidx, c_o, dim, tilestart, tilecurrent, domainx, domainy, partx, party, repetition)))
-    assert node * 4 == px * py, filename
+    node, tileidx, ratioidx, dim, tilestart, tilecurrent, domainx, domainy, partx, party, repetition = list(map(int, \
+    (node, tileidx, ratioidx, dim, tilestart, tilecurrent, domainx, domainy, partx, party, repetition)))
+    assert node * 4 == partx * party, filename
     return (node, tileidx, ratioidx, c_o, dim, tilestart, tilecurrent, domainx, domainy, partx, party, repetition)
 
 _content_re = re.compile(r'^ELAPSED TIME = +([0-9.]+) s$', re.MULTILINE)
