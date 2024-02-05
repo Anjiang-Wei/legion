@@ -1,0 +1,92 @@
+#!/bin/bash
+#BSUB -W 240
+#BSUB -alloc_flags atsdisable
+
+n=$(( ($LSB_DJOB_NUMPROC - 1) / 40))
+numgpus=4
+
+echo Num nodes: $numnodes
+echo Job id: $LSB_JOBID
+
+module load gcc/7.3.1
+module load cmake/3.14.5
+module load cuda/11.7.0
+
+root_dir="$PWD"
+export LD_LIBRARY_PATH="$PWD"
+
+repeat=20
+
+run() {
+  local node=$1;
+  local tileidx=$2;
+  local ratioidx=$3;
+  local co=$4;
+  local dim=$5;
+  #
+  local tilestart=$6;  # for node 1
+  local tilecurrent=$7; # product of domainx*domainy
+  local domainx=$8;
+  local domainy=$9;
+  local partx=${10};
+  local party=${11};
+  local directory="swp_${node}_${tileidx}_${ratioidx}";
+  local signature="${node}_${tileidx}_${ratioidx}_${co}_${dim}_${tilestart}_${tilecurrent}_${domainx}_${domainy}_${partx}_${party}";
+
+  local oricmd=" -tsteps 50 -tprune 30 -hl:sched 1024 -ll:gpu ${numgpus} -ll:util 1 -ll:bgwork 2 -ll:csize 150000 -ll:fsize 15000 -ll:zsize 2048 -ll:rsize 512 -ll:gsize 0 -level 5 -dm:replicate 1 -dm:same_address_space -dm:memoize -lg:no_fence_elision -lg:parallel_replay 2 "
+  if [ "$dim" -eq 2 ]; then
+    oricmd="$oricmd -blockmapper ${partx}"
+  fi
+
+  local logcmd=$oricmd" -wrapper -level mapper=debug -logfile wrapper_${signature}_%.wrapper -lg:prof ${n} -lg:prof_logfile prof_${signature}_%.gz "
+
+  if [[ ! -d ${directory} ]]; then mkdir ${directory}; fi
+  pushd ${directory}
+
+  echo $logcmd
+  jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx ${domainx} -ny ${domainy} -ntx ${partx} -nty ${party} $logcmd
+
+  for (( r=1; r <= ${repeat}; r++)); do
+    echo "Running swp_${signature}_r${r}"
+    jsrun -b none -c ALL_CPUS -g ALL_GPUS -r 1 -n $n "$root_dir/stencil"  -nx ${domainx} -ny ${domainy} -ntx ${partx} -nty ${party} $oricmd | tee out_${signature}_r${r}.log
+  done
+
+  popd
+}
+
+# 10000 * 10000 * 4
+# run  node  tileidx ratioidx c_o dim  tilestart tilecurrent domain_x domain_y partx party
+run 	32 	 4 	 0 	 o 	 1 	 300000000 	 9600000000 	 97979 	 97980 	 8 	 16 
+run 	32	 4 	 0 	 o 	 2 	 300000000 	 9600000000 	 97979 	 97980 	 8 	 16 
+run 	32 	 4 	 0 	 c 	 1 	 300000000 	 9600000000 	 97979 	 97980 	 16 	 8 
+run 	32 	 4 	 0 	 c 	 2 	 300000000 	 9600000000 	 97979 	 97980 	 16 	 8 
+run 	32 	 4 	 1 	 o 	 1 	 300000000 	 9600000000 	 69282 	 138565 	 8 	 16 
+run 	32	 4 	 1 	 o 	 2 	 300000000 	 9600000000 	 69282 	 138565 	 8 	 16 
+run 	32 	 4 	 1 	 c 	 1 	 300000000 	 9600000000 	 69282 	 138565 	 16 	 8 
+run 	32 	 4 	 1 	 c 	 2 	 300000000 	 9600000000 	 69282 	 138565 	 16 	 8 
+run 	32 	 4 	 2 	 o 	 1 	 300000000 	 9600000000 	 48989 	 195960 	 4 	 32 
+run 	32	 4 	 2 	 o 	 2 	 300000000 	 9600000000 	 48989 	 195960 	 4 	 32 
+run 	32 	 4 	 2 	 c 	 1 	 300000000 	 9600000000 	 48989 	 195960 	 16 	 8 
+run 	32 	 4 	 2 	 c 	 2 	 300000000 	 9600000000 	 48989 	 195960 	 16 	 8 
+run 	32 	 4 	 3 	 o 	 1 	 300000000 	 9600000000 	 34641 	 277129 	 4 	 32 
+run 	32	 4 	 3 	 o 	 2 	 300000000 	 9600000000 	 34641 	 277129 	 4 	 32 
+run 	32 	 4 	 3 	 c 	 1 	 300000000 	 9600000000 	 34641 	 277129 	 16 	 8 
+run 	32 	 4 	 3 	 c 	 2 	 300000000 	 9600000000 	 34641 	 277129 	 16 	 8 
+run 	32 	 4 	 4 	 o 	 1 	 300000000 	 9600000000 	 24494 	 391919 	 2 	 64 
+run 	32 	 4 	 4 	 c 	 1 	 300000000 	 9600000000 	 24494 	 391919 	 16 	 8 
+run 	32 	 4 	 4 	 c 	 2 	 300000000 	 9600000000 	 24494 	 391919 	 16 	 8 
+run 	32 	 4 	 5 	 o 	 1 	 300000000 	 9600000000 	 17320 	 554257 	 2 	 64 
+run 	32 	 4 	 5 	 c 	 1 	 300000000 	 9600000000 	 17320 	 554257 	 16 	 8 
+run 	32 	 4 	 5 	 c 	 2 	 300000000 	 9600000000 	 17320 	 554257 	 16 	 8 
+run 	32 	 4 	 6 	 o 	 1 	 300000000 	 9600000000 	 12247 	 783837 	 1 	 128 
+run 	32 	 4 	 6 	 c 	 1 	 300000000 	 9600000000 	 12247 	 783837 	 16 	 8 
+run 	32 	 4 	 6 	 c 	 2 	 300000000 	 9600000000 	 12247 	 783837 	 16 	 8 
+run 	32 	 4 	 7 	 o 	 1 	 300000000 	 9600000000 	 8660 	 1108513 	 1 	 128 
+run 	32 	 4 	 7 	 c 	 1 	 300000000 	 9600000000 	 8660 	 1108513 	 16 	 8 
+run 	32 	 4 	 7 	 c 	 2 	 300000000 	 9600000000 	 8660 	 1108513 	 16 	 8 
+run 	32 	 4 	 8 	 o 	 1 	 300000000 	 9600000000 	 6123 	 1567674 	 1 	 128 
+run 	32 	 4 	 8 	 c 	 1 	 300000000 	 9600000000 	 6123 	 1567674 	 16 	 8 
+run 	32 	 4 	 8 	 c 	 2 	 300000000 	 9600000000 	 6123 	 1567674 	 16 	 8 
+run 	32 	 4 	 9 	 o 	 1 	 300000000 	 9600000000 	 4330 	 2217026 	 1 	 128 
+run 	32 	 4 	 9 	 c 	 1 	 300000000 	 9600000000 	 4330 	 2217026 	 16 	 8 
+run 	32 	 4 	 9 	 c 	 2 	 300000000 	 9600000000 	 4330 	 2217026 	 16 	 8 
