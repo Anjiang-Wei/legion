@@ -53,7 +53,7 @@ def plot_geometric_means(data, title, x_label, y_label='Geometric Mean of Improv
     plt.ylabel(y_label)
     plt.grid(True)
     # plt.show()
-    plt.savefig(f'{title}.png')
+    plt.savefig(f'{title}.pdf')
 
 # Plotting
 plot_geometric_means(geo_mean_node, 'Improvement Percentage Geometric Mean by Node', 'Node')
