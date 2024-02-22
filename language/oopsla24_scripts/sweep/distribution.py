@@ -27,23 +27,38 @@ def calculate_improvement(group):
     o_throughput = grid_size / o_time
     c_throughput = grid_size / c_time
 
-    improvement = o_throughput / c_throughput - 1
+    improvement = o_throughput / c_throughput
     return improvement
 
 # Apply the function to each group
 improvement_percentages = grouped.apply(calculate_improvement).reset_index()
 
+# Finding the rows with smallest and biggest improvement percentages
+smallest_improvement_row = improvement_percentages.loc[improvement_percentages[0].idxmin()]
+biggest_improvement_row = improvement_percentages.loc[improvement_percentages[0].idxmax()]
+
+# Display the results
+print("Smallest Improvement:\n", smallest_improvement_row)
+print("\nBiggest Improvement:\n", biggest_improvement_row)
+print("length of data: ", len(improvement_percentages))
+
 improvement_data = improvement_percentages[0]
+
+# compute the geometric mean
+geo_mean = improvement_data.prod()**(1/len(improvement_data))
+
+# print the result
+print("Geometric Mean: ", geo_mean)
 
 # Plotting the histogram
 # plt.figure(figsize=(10, 6))
 plt.figure()
-plt.hist(improvement_data, bins=30, color='blue', edgecolor='black')
+plt.hist((improvement_data - 1) * 100, bins=50, color='green')
 title = 'Distribution of Improvement Percentages'
 plt.title(title)
 plt.xlabel('Improvement Percentage')
 plt.ylabel('Frequency')
-plt.grid(True)
-plt.xlim(left=0)
+# plt.grid(True)
+# plt.xlim()
 # plt.show()
-plt.savefig(f'{title}.pdf')
+plt.savefig(f'distribution.pdf')
