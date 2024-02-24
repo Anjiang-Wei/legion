@@ -77,12 +77,10 @@ def plot_geometric_means(data, x_label, y_label='Geometric Mean of Improvement P
     
     elif x_label == 'Aspect Ratio':
         data = [(idx, (value - 1) * 100) for idx, value in data.items()]
-        print(data)
-        print(*zip(*data))
         plt.plot(*zip(*data), marker = 'o')
         plt.ylim(0, 50)
         plt.yticks(range(0, 51, 10), fontsize=tick_fontsize)
-        plt.xticks(range(0, 10, 2), ["1:1", "4:1", "16:1", "64:1", "256:1"], fontsize=tick_fontsize)
+        plt.xticks(range(0, 10), ["1:1", "2:1", "4:1", "8:1", "16:1", "32:1", "64:1", "128:1", "256:1", "512:1"], fontsize=tick_fontsize)
         plt.xlabel('Aspect Ratio of Iteration Space ($x : y$)', fontsize=title_fontsize)
 
     plt.title('Geometric Mean of Improvement Percentage w.r.t. ' + x_label, fontsize=title_fontsize)
