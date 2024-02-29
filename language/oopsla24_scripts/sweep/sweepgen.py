@@ -73,7 +73,7 @@ def gen(node, tile_idx, tile_start):
 
 def genall():
     for node in [1, 2, 4, 8, 16, 32, 64]:
-        for tileidx, tile_start in enumerate([1000 * 1000, 5000 * 5000, 10000 * 10000, \
+        for tileidx, tile_start in enumerate([1000 * 1000, 10000 * 1000, 10000 * 10000, \
                                             10000 * 10000 * 2, 10000 * 10000 * 3, 10000 * 10000 * 4]):
             gen(node, tileidx, tile_start)
 
