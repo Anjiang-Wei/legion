@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 
 # Load the CSV file
@@ -53,11 +54,12 @@ print("Geometric Mean: ", geo_mean)
 # Plotting the histogram
 # plt.figure(figsize=(10, 6))
 plt.figure()
-plt.hist((improvement_data - 1) * 100, bins=50, color='green')
+plt.hist((improvement_data - 1) * 100, bins=50, color='green', density=True)
 title = 'Distribution of Improvement Percentages'
 plt.title(title)
 plt.xlabel('Improvement Percentage')
-plt.ylabel('Frequency')
+plt.ylabel('Percentage of Occurrences')
+plt.gca().yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1, decimals=0))
 # plt.grid(True)
 # plt.xlim()
 # plt.show()
