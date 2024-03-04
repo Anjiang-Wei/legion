@@ -49,6 +49,7 @@ def plot_geometric_means(data, x_label, y_label='Geometric Mean of Improvement P
     plt.figure(figsize=(12, 8))
     tick_fontsize = 15
     title_fontsize = 20
+    print(x_label, data)
     if x_label == 'Machines':
         # Define the node values and map them to integers
         nodes = [1, 2, 4, 8, 16, 32]
@@ -72,7 +73,7 @@ def plot_geometric_means(data, x_label, y_label='Geometric Mean of Improvement P
         plt.plot(*zip(*data), marker='o')
         plt.ylim(0, 50)
         plt.yticks(range(0, 51, 10), fontsize=tick_fontsize)
-        plt.xticks(range(0, 5), ["$10^6$", "$2.5 \\times 10^7$", "$10^8$", "$2 \\times 10^8$", "$4 \\times 10^8$"], fontsize=tick_fontsize)
+        plt.xticks(range(0, 5), ["$10^6$", "$10^7$", "$10^8$", "$2 \\times 10^8$", "$4 \\times 10^8$"], fontsize=tick_fontsize)
         plt.xlabel('Area of Iteration Space Per Node ($x * y / \# nodes$)', fontsize=title_fontsize)
     
     elif x_label == 'Aspect Ratio':
