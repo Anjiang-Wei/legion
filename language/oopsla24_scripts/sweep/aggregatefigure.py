@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 
 # Load the CSV file
@@ -67,14 +68,30 @@ def plot_geometric_means(data, x_label, y_label='Geometric Mean of Improvement P
         plt.xticks(range(len(nodes)), [f"{node} ({4*node})" for node in nodes], fontsize=tick_fontsize)
         plt.xlabel('Number of Nodes (GPUs)', fontsize=title_fontsize)
     elif x_label == 'Area':
-        idx2position = {0: 0, 1: 1, 2: 2, 3: 3, 5: 4}
+        idx2position = {0: 10**6, 1: 10**7, 2: 10**8, 3: 2 * 10**8, 5: 4 * 10**8}
         data = [(idx2position[idx], (value - 1) * 100) for idx, value in data.items()]
 
         plt.plot(*zip(*data), marker='o')
+
+        # Set the x-axis to logarithmic scale
+        plt.xscale('log')
+
+        # Define the x-ticks and their labels
+        xticks = [10**6, 10**7, 10**8, 2 * 10**8, 4 * 10**8]
+        xticklabels = ["$10^6$", "$10^7$", "$10^8$", "$2 \\times 10^8$", "$4 \\times 10^8$"]
+
+        plt.xticks(xticks, xticklabels, fontsize=tick_fontsize)
+
+         # Disable minor ticks
+        plt.gca().xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
+        plt.gca().xaxis.set_minor_locator(matplotlib.ticker.NullLocator())
+
+        # Optional: Add vertical grid lines at major tick positions
+        # plt.grid(True, which='major', axis='x', linestyle='--')
+
         plt.ylim(0, 50)
         plt.yticks(range(0, 51, 10), fontsize=tick_fontsize)
-        plt.xticks(range(0, 5), ["$10^6$", "$10^7$", "$10^8$", "$2 \\times 10^8$", "$4 \\times 10^8$"], fontsize=tick_fontsize)
-        plt.xlabel('Area of Iteration Space Per Node ($x * y / \# nodes$)', fontsize=title_fontsize)
+        plt.xlabel('Area of Iteration Space Per Node ($x * y / \\# nodes$)', fontsize=title_fontsize)
     
     elif x_label == 'Aspect Ratio':
         data = [(idx, (value - 1) * 100) for idx, value in data.items()]
