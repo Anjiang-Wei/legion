@@ -9,6 +9,7 @@ data = pd.read_csv(file_path)
 
 data = data[data['tileidx'] != 4]
 data = data[data['node'] != 64]
+data = data[data['ratioidx'] <= 5]
 
 # Grouping the data by 'node', 'tileidx', 'ratioidx'
 grouped = data.groupby(['node', 'tileidx', 'ratioidx', 'tilecurrent'])

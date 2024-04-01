@@ -9,6 +9,7 @@ data = pd.read_csv(file_path)
 
 data = data[data['tileidx'] != 4]
 data = data[data['node'] != 64]
+data = data[data['ratioidx'] <= 5]
 
 # Grouping the data by 'node', 'tileidx', 'ratioidx'
 grouped = data.groupby(['node', 'tileidx', 'ratioidx', 'tilecurrent'])
@@ -61,7 +62,7 @@ def plot_geometric_means(data, x_label, y_label='Geometric Mean of Improvement P
 
         # Plot the data
         plt.plot(*zip(*data), marker='o')  # Unzipping the data
-        plt.ylim(0, 40)
+        plt.ylim(0, 30)
         plt.yticks(range(0, 41, 10), fontsize=tick_fontsize)
 
         # Set custom x-ticks
@@ -89,16 +90,19 @@ def plot_geometric_means(data, x_label, y_label='Geometric Mean of Improvement P
         # Optional: Add vertical grid lines at major tick positions
         # plt.grid(True, which='major', axis='x', linestyle='--')
 
-        plt.ylim(0, 50)
+        plt.ylim(0, 40)
         plt.yticks(range(0, 51, 10), fontsize=tick_fontsize)
         plt.xlabel('Area of Iteration Space Per Node ($x * y / \\# nodes$)', fontsize=title_fontsize)
     
     elif x_label == 'Aspect Ratio':
         data = [(idx, (value - 1) * 100) for idx, value in data.items()]
         plt.plot(*zip(*data), marker = 'o')
-        plt.ylim(0, 50)
-        plt.yticks(range(0, 51, 10), fontsize=tick_fontsize)
-        plt.xticks(range(0, 10), ["1:1", "2:1", "4:1", "8:1", "16:1", "32:1", "64:1", "128:1", "256:1", "512:1"], fontsize=tick_fontsize)
+        # plt.ylim(0, 50)
+        # plt.yticks(range(0, 51, 10), fontsize=tick_fontsize)
+        # plt.xticks(range(0, 10), ["1:1", "2:1", "4:1", "8:1", "16:1", "32:1", "64:1", "128:1", "256:1", "512:1"], fontsize=tick_fontsize)
+        plt.ylim(0, 30)
+        plt.yticks(range(0, 31, 10), fontsize=tick_fontsize)
+        plt.xticks(range(0, 6), ["1:1", "1:2", "1:4", "1:8", "1:16", "1:32"], fontsize=tick_fontsize)
         plt.xlabel('Aspect Ratio of Iteration Space ($x : y$)', fontsize=title_fontsize)
 
     plt.title('Geometric Mean of Improvement Percentage w.r.t. ' + x_label, fontsize=title_fontsize)
