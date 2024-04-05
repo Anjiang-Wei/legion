@@ -47,10 +47,10 @@ geo_mean_tileidx = improvement_percentages.groupby('tileidx')[0].apply(lambda x:
 geo_mean_ratioidx = improvement_percentages.groupby('ratioidx')[0].apply(lambda x: x.prod()**(1/len(x)))
 
 # Function to plot the geometric means
-def plot_geometric_means(data, x_label, y_label='Geometric Mean of Improvement Percentage'):
+def plot_geometric_means(data, x_label, y_label='Improvement Percentage'):
     plt.figure(figsize=(12, 8))
-    tick_fontsize = 15
-    title_fontsize = 20
+    tick_fontsize = 20
+    title_fontsize = 25
     print(x_label, data)
     if x_label == 'Machines':
         # Define the node values and map them to integers
@@ -61,9 +61,9 @@ def plot_geometric_means(data, x_label, y_label='Geometric Mean of Improvement P
         data = [(node_to_int.get(node, node), (value - 1) * 100) for node, value in data.items()]
 
         # Plot the data
-        plt.plot(*zip(*data), marker='o')  # Unzipping the data
+        plt.plot(*zip(*data), "--o", linewidth=3, markersize=20)  # Unzipping the data
         plt.ylim(0, 30)
-        plt.yticks(range(0, 41, 10), fontsize=tick_fontsize)
+        plt.yticks(range(0, 31, 10), fontsize=tick_fontsize)
 
         # Set custom x-ticks
         plt.xticks(range(len(nodes)), [f"{node} ({4*node})" for node in nodes], fontsize=tick_fontsize)
@@ -72,7 +72,7 @@ def plot_geometric_means(data, x_label, y_label='Geometric Mean of Improvement P
         idx2position = {0: 10**6, 1: 10**7, 2: 10**8, 3: 2 * 10**8, 5: 4 * 10**8}
         data = [(idx2position[idx], (value - 1) * 100) for idx, value in data.items()]
 
-        plt.plot(*zip(*data), marker='o')
+        plt.plot(*zip(*data),  "--o", linewidth=3, markersize=20)
 
         # Set the x-axis to logarithmic scale
         plt.xscale('log')
@@ -91,12 +91,12 @@ def plot_geometric_means(data, x_label, y_label='Geometric Mean of Improvement P
         # plt.grid(True, which='major', axis='x', linestyle='--')
 
         plt.ylim(0, 40)
-        plt.yticks(range(0, 51, 10), fontsize=tick_fontsize)
+        plt.yticks(range(0, 41, 10), fontsize=tick_fontsize)
         plt.xlabel('Area of Iteration Space Per Node ($x * y / \\# nodes$)', fontsize=title_fontsize)
     
     elif x_label == 'Aspect Ratio':
         data = [(idx, (value - 1) * 100) for idx, value in data.items()]
-        plt.plot(*zip(*data), marker = 'o')
+        plt.plot(*zip(*data),  "--o", linewidth=3, markersize=20)
         # plt.ylim(0, 50)
         # plt.yticks(range(0, 51, 10), fontsize=tick_fontsize)
         # plt.xticks(range(0, 10), ["1:1", "2:1", "4:1", "8:1", "16:1", "32:1", "64:1", "128:1", "256:1", "512:1"], fontsize=tick_fontsize)
@@ -105,7 +105,7 @@ def plot_geometric_means(data, x_label, y_label='Geometric Mean of Improvement P
         plt.xticks(range(0, 6), ["1:1", "1:2", "1:4", "1:8", "1:16", "1:32"], fontsize=tick_fontsize)
         plt.xlabel('Aspect Ratio of Iteration Space ($x : y$)', fontsize=title_fontsize)
 
-    plt.title('Geometric Mean of Improvement Percentage w.r.t. ' + x_label, fontsize=title_fontsize)
+    plt.title('Improvement Percentage w.r.t. ' + x_label, fontsize=title_fontsize)
     plt.ylabel('Improvement Percentage (%)', fontsize=title_fontsize)
     # plt.grid(True)
     # plt.show()
