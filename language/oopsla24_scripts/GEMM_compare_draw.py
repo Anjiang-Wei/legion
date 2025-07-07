@@ -1,15 +1,31 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+# Global configuration variables for tunable parameters
+FIGURE_WIDTH = 13
+FIGURE_HEIGHT = 10
+FIGURE_DPI = 400
+
+# Font size configuration
+FONT_SIZE_XTICKS = 28
+FONT_SIZE_YTICKS_GEMM = 32
+FONT_SIZE_YTICKS_NON_GEMM = 22
+FONT_SIZE_XLABEL_GEMM = 32
+FONT_SIZE_YLABEL_GEMM = 32
+FONT_SIZE_XLABEL_NON_GEMM = 22
+FONT_SIZE_YLABEL_NON_GEMM = 22
+FONT_SIZE_LEGEND = 32
+FONT_SIZE_OOM_TEXT = 22
+
 global x, labels
 def init():
     global x
-    plt.figure(figsize=(11,8), dpi=400)
+    plt.figure(figsize=(FIGURE_WIDTH, FIGURE_HEIGHT), dpi=FIGURE_DPI)
 
-    x = [i for i in range(1, 7)]
+    x = [i for i in range(1, 6)]
     # y = [5000 * i for i in range(1, 6)]
-    labels = [str(2**i) + " (" + str(2**i * 4) + ")" for i in range(0, len(x))]
-    plt.xticks(x, labels, fontsize=25)
+    labels = [str(2**i * 4) for i in range(0, len(x))]
+    plt.xticks(x, labels, fontsize=FONT_SIZE_XTICKS)
 # plt.yticks(y, fontsize=20)
 
 absolute = True
@@ -33,8 +49,8 @@ def pumma():
     dsl = [27026.35135,16138.63482,15391.82299,6799.869576,13448.11935,3039.176093,9732.329684]
     dft = [7622.486899,5187.154062,5818.109091,0,5716.802144,0,6570.484061]
     fname="perfpumma"
-    plt.text(3.75, 4300, "OOM", fontsize=20, color='darkorange')
-    plt.text(5.75, 6900, "OOM", fontsize=20, color='darkorange')
+    plt.text(3.75, 4300, "OOM", fontsize=FONT_SIZE_OOM_TEXT, color='darkorange')
+    # plt.text(5.75, 6900, "OOM", fontsize=FONT_SIZE_OOM_TEXT, color='darkorange')
 
 def summa():
     global cpp, dsl, dft, GEMM, fname
@@ -43,8 +59,8 @@ def summa():
     dsl = [27256.55877,15205.89114,14492.57246,6152.703199,12673.18812,3357.943978,8673.822593]
     dft = [7607.988588,4796.770409,6092.840823,0,6011.609994,0,5418.43119]
     fname="perfsumma"
-    plt.text(3.75, 4300, "OOM", fontsize=20, color='darkorange')
-    plt.text(5.75, 6500, "OOM", fontsize=20, color='darkorange')
+    plt.text(3.75, 4300, "OOM", fontsize=FONT_SIZE_OOM_TEXT, color='darkorange')
+    # plt.text(5.75, 6500, "OOM", fontsize=FONT_SIZE_OOM_TEXT, color='darkorange')
 
 def solomonik():
     global cpp, dsl, dft, GEMM, fname
@@ -61,7 +77,7 @@ def johnson():
     dsl = [27728.94281,15144.8233,10869.42935,6842.021776,9396.505652]
     dft = [29519.5572,12812.21179,18680.44367,10110.17248,0]
     fname="perfjohnson"
-    plt.text(4.75, 12000, "OOM", fontsize=20, color='darkorange')
+    plt.text(4.75, 12000, "OOM", fontsize=FONT_SIZE_OOM_TEXT, color='darkorange')
 
 def cosma():
     global cpp, dsl, dft, GEMM, fname
@@ -70,8 +86,8 @@ def cosma():
     dsl = [22252.57302,15054.13574,13417.02306,8468.026204,9407.555492]
     dft = [20024.53066,12848.58945,15332.82223,0,0]
     fname="perfcosma"
-    plt.text(3.8, 13000, "OOM", fontsize=20, color='darkorange')
-    plt.text(4.8, 13000, "OOM", fontsize=20, color='darkorange')
+    plt.text(3.8, 13000, "OOM", fontsize=FONT_SIZE_OOM_TEXT, color='darkorange')
+    plt.text(4.8, 13000, "OOM", fontsize=FONT_SIZE_OOM_TEXT, color='darkorange')
 
 def circuit():
     global cpp, dsl, dft, GEMM, fname
@@ -85,9 +101,9 @@ def circuit():
     dft = [wires / i / 1e7 for i in ftime]
     y = [2 + i * 0.5 for i in range(0, 7)]
     plt.ylim([2, 5])
-    plt.yticks(y, fontsize=20)
-    plt.xlabel("Nodes (GPUs)", fontsize=20)
-    plt.ylabel("Thoughput Per Node ($10^{7}$ wires/s)", fontsize=20)
+    plt.yticks(y, fontsize=FONT_SIZE_YTICKS_NON_GEMM)
+    plt.xlabel("# GPUs", fontsize=FONT_SIZE_XLABEL_NON_GEMM)
+    plt.ylabel("Thoughput Per Node ($10^{7}$ wires/s)", fontsize=FONT_SIZE_YLABEL_NON_GEMM)
     fname = "perfcircuit"
 
 def stencil():
@@ -102,9 +118,9 @@ def stencil():
     dft = [cells / i / 1e10 for i in ftime]
     y = [6.5 + i * 0.5 for i in range(0, 6)]
     plt.ylim([6.5, 8.5])
-    plt.yticks(y, fontsize=20)
-    plt.xlabel("Nodes (GPUs)", fontsize=20)
-    plt.ylabel("Thoughput Per Node ($10^{10}$ cells/s)", fontsize=20)
+    plt.yticks(y, fontsize=FONT_SIZE_YTICKS_NON_GEMM)
+    plt.xlabel("# GPUs", fontsize=FONT_SIZE_XLABEL_NON_GEMM)
+    plt.ylabel("Thoughput Per Node ($10^{10}$ cells/s)", fontsize=FONT_SIZE_YLABEL_NON_GEMM)
     fname = "perfstencil"
 
 def pennant():
@@ -119,9 +135,9 @@ def pennant():
     dft = [zones / i / 1e8 for i in ftime]
     y = [5+i*0.5 for i in range(0, 7)]
     plt.ylim([5, 8])
-    plt.yticks(y, fontsize=20)
-    plt.xlabel("Nodes (GPUs)", fontsize=20)
-    plt.ylabel("Thoughput Per Node ($10^{8}$ zones/s)", fontsize=20)
+    plt.yticks(y, fontsize=FONT_SIZE_YTICKS_NON_GEMM)
+    plt.xlabel("# GPUs", fontsize=FONT_SIZE_XLABEL_NON_GEMM)
+    plt.ylabel("Thoughput Per Node ($10^{8}$ zones/s)", fontsize=FONT_SIZE_YLABEL_NON_GEMM)
     fname = "perfpennant"
 
 def baseline():
@@ -171,7 +187,8 @@ def draw(f):
     init()
     f()
     global cpp, dsl, dft, GEMM, fname, x
-    cpp, dsl, dft = cpp[:-1], dsl[:-1], dft[:-1]
+    # Take only the first 5 elements to match the new x-axis range (up to 64 GPUs)
+    cpp, dsl, dft = cpp[:5], dsl[:5], dft[:5]
     length = len(cpp)
     x = np.array(x)
     # cpp = np.array(cpp)
@@ -185,15 +202,15 @@ def draw(f):
         plt.plot(x[:length][dft>0], dft[dft>0], "--^", label="Runtime Heuristics", linewidth=3, markersize=20)
         y = [5000 * i for i in range(0, 7)]
         plt.ylim([0, 30000])
-        plt.yticks(y, fontsize=30)
-        plt.xlabel("Nodes (GPUs)", fontsize=30)
-        plt.ylabel("GFLOP/s Per Node", fontsize=30)
+        plt.yticks(y, fontsize=FONT_SIZE_YTICKS_GEMM)
+        plt.xlabel("# GPUs", fontsize=FONT_SIZE_XLABEL_GEMM)
+        plt.ylabel("GFLOP/s Per Node", fontsize=FONT_SIZE_YLABEL_GEMM)
     # plt.plot(x, full_db, "--+", label="full - db")
     else:
         plt.plot(x[:length][dft>0], dft[dft>0], "--^", label="Default Maple", linewidth=3, markersize=20)
 
 
-    plt.legend(fontsize=30)
+    plt.legend(fontsize=FONT_SIZE_LEGEND)
     # plt.show()
     plt.savefig(f"{fname}.pdf", format="pdf", bbox_inches='tight')
 
