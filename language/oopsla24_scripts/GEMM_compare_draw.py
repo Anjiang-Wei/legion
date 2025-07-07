@@ -7,15 +7,15 @@ FIGURE_HEIGHT = 10
 FIGURE_DPI = 400
 
 # Font size configuration
-FONT_SIZE_XTICKS = 28
-FONT_SIZE_YTICKS_GEMM = 32
-FONT_SIZE_YTICKS_NON_GEMM = 22
-FONT_SIZE_XLABEL_GEMM = 32
-FONT_SIZE_YLABEL_GEMM = 32
-FONT_SIZE_XLABEL_NON_GEMM = 22
-FONT_SIZE_YLABEL_NON_GEMM = 22
-FONT_SIZE_LEGEND = 32
-FONT_SIZE_OOM_TEXT = 22
+FONT_SIZE_XTICKS = 35
+FONT_SIZE_YTICKS_GEMM = 35
+FONT_SIZE_YTICKS_NON_GEMM = 35
+FONT_SIZE_XLABEL_GEMM = 40
+FONT_SIZE_YLABEL_GEMM = 40
+FONT_SIZE_XLABEL_NON_GEMM = 40
+FONT_SIZE_YLABEL_NON_GEMM = 40
+FONT_SIZE_LEGEND = 35
+FONT_SIZE_OOM_TEXT = 35
 
 global x, labels
 def init():
@@ -49,7 +49,7 @@ def pumma():
     dsl = [27026.35135,16138.63482,15391.82299,6799.869576,13448.11935,3039.176093,9732.329684]
     dft = [7622.486899,5187.154062,5818.109091,0,5716.802144,0,6570.484061]
     fname="perfpumma"
-    plt.text(3.75, 4300, "OOM", fontsize=FONT_SIZE_OOM_TEXT, color='darkorange')
+    plt.text(3.75, 4.3, "OOM", fontsize=FONT_SIZE_OOM_TEXT, color='darkorange')
     # plt.text(5.75, 6900, "OOM", fontsize=FONT_SIZE_OOM_TEXT, color='darkorange')
 
 def summa():
@@ -59,7 +59,7 @@ def summa():
     dsl = [27256.55877,15205.89114,14492.57246,6152.703199,12673.18812,3357.943978,8673.822593]
     dft = [7607.988588,4796.770409,6092.840823,0,6011.609994,0,5418.43119]
     fname="perfsumma"
-    plt.text(3.75, 4300, "OOM", fontsize=FONT_SIZE_OOM_TEXT, color='darkorange')
+    plt.text(3.75, 4.3, "OOM", fontsize=FONT_SIZE_OOM_TEXT, color='darkorange')
     # plt.text(5.75, 6500, "OOM", fontsize=FONT_SIZE_OOM_TEXT, color='darkorange')
 
 def solomonik():
@@ -77,7 +77,7 @@ def johnson():
     dsl = [27728.94281,15144.8233,10869.42935,6842.021776,9396.505652]
     dft = [29519.5572,12812.21179,18680.44367,10110.17248,0]
     fname="perfjohnson"
-    plt.text(4.75, 12000, "OOM", fontsize=FONT_SIZE_OOM_TEXT, color='darkorange')
+    plt.text(4.75, 12, "OOM", fontsize=FONT_SIZE_OOM_TEXT, color='darkorange')
 
 def cosma():
     global cpp, dsl, dft, GEMM, fname
@@ -86,8 +86,8 @@ def cosma():
     dsl = [22252.57302,15054.13574,13417.02306,8468.026204,9407.555492]
     dft = [20024.53066,12848.58945,15332.82223,0,0]
     fname="perfcosma"
-    plt.text(3.8, 13000, "OOM", fontsize=FONT_SIZE_OOM_TEXT, color='darkorange')
-    plt.text(4.8, 13000, "OOM", fontsize=FONT_SIZE_OOM_TEXT, color='darkorange')
+    plt.text(3.8, 13, "OOM", fontsize=FONT_SIZE_OOM_TEXT, color='darkorange')
+    plt.text(4.8, 13, "OOM", fontsize=FONT_SIZE_OOM_TEXT, color='darkorange')
 
 def circuit():
     global cpp, dsl, dft, GEMM, fname
@@ -196,15 +196,15 @@ def draw(f):
     dft = np.array(dft)
 
     # plt.plot(x[:length][cpp > 0], cpp[cpp > 0], "--x", label="Hand-tuned C++", linewidth=3, markersize=20)
-    plt.plot(x[:length][dsl > 0], dsl[dsl > 0], "--o", label="Algorithm Specification", linewidth=3, markersize=20)
+    plt.plot(x[:length][dsl > 0], dsl[dsl > 0]/1000, "--o", label="Algorithm Specification", linewidth=3, markersize=20)
 
     if GEMM:
-        plt.plot(x[:length][dft>0], dft[dft>0], "--^", label="Runtime Heuristics", linewidth=3, markersize=20)
-        y = [5000 * i for i in range(0, 7)]
-        plt.ylim([0, 30000])
+        plt.plot(x[:length][dft>0], dft[dft>0]/1000, "--^", label="Runtime Heuristics", linewidth=3, markersize=20)
+        y = [5 * i for i in range(0, 7)]
+        plt.ylim([0, 30])
         plt.yticks(y, fontsize=FONT_SIZE_YTICKS_GEMM)
         plt.xlabel("# GPUs", fontsize=FONT_SIZE_XLABEL_GEMM)
-        plt.ylabel("GFLOP/s Per Node", fontsize=FONT_SIZE_YLABEL_GEMM)
+        plt.ylabel("TFLOP/s Per Node", fontsize=FONT_SIZE_YLABEL_GEMM)
     # plt.plot(x, full_db, "--+", label="full - db")
     else:
         plt.plot(x[:length][dft>0], dft[dft>0], "--^", label="Default Maple", linewidth=3, markersize=20)
