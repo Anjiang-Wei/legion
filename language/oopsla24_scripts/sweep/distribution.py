@@ -3,6 +3,23 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
+# Global font size configuration - easily tunable
+TITLE_FONTSIZE = 25
+LABEL_FONTSIZE = 30
+TICK_FONTSIZE = 25
+LEGEND_FONTSIZE = 25
+
+# Set global matplotlib parameters for consistent styling
+plt.rcParams.update({
+    'font.size': TICK_FONTSIZE,
+    'axes.titlesize': TITLE_FONTSIZE,
+    'axes.labelsize': LABEL_FONTSIZE,
+    'xtick.labelsize': TICK_FONTSIZE,
+    'ytick.labelsize': TICK_FONTSIZE,
+    'legend.fontsize': LEGEND_FONTSIZE,
+    'figure.titlesize': TITLE_FONTSIZE
+})
+
 # Load the CSV file
 file_path = 'all.csv'
 data = pd.read_csv(file_path)
@@ -52,18 +69,41 @@ geo_mean = improvement_data.prod()**(1/len(improvement_data))
 # print the result
 print("Geometric Mean: ", geo_mean)
 
-# Plotting the histogram
-plt.figure(figsize=(6, 4))
-# plt.figure()
-plt.hist((improvement_data - 1) * 100, bins=50, color='royalblue', density=True)
-title = 'Distribution of Improvement Percentages'
-plt.title(title, fontsize=13)
-plt.xlabel('Improvement Percentage', fontsize=12)
-plt.ylabel('Percentage of Occurrences', fontsize=13)
-plt.xticks(fontsize=10)
-plt.yticks(fontsize=12)
-plt.gca().yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1, decimals=0))
-# plt.grid(True)
-# plt.xlim()
-# plt.show()
-plt.savefig(f'distribution.pdf')
+# Create a more professional-looking figure
+fig, ax = plt.subplots(figsize=(12, 8))
+
+# Convert to percentage for better readability
+improvement_percentages_display = (improvement_data - 1) * 100
+
+# Filter out negative improvements (below 0%)
+improvement_percentages_display = improvement_percentages_display[improvement_percentages_display >= 0]
+
+# Create histogram with improved styling
+n, bins, patches = ax.hist(improvement_percentages_display, 
+                          bins=50, 
+                          color='steelblue', 
+                          alpha=0.7, 
+                          density=True,
+                          edgecolor='white',
+                          linewidth=0.5)
+
+# Improved labels (without title)
+ax.set_xlabel('Performance Improvement (%)', fontsize=LABEL_FONTSIZE)
+ax.set_ylabel('Density', fontsize=LABEL_FONTSIZE)
+
+# Format y-axis as percentage
+ax.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1, decimals=0))
+
+# Add grid for better readability
+ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+
+# Improve layout
+plt.tight_layout()
+
+# Save with higher DPI for better quality
+plt.savefig('distribution.pdf', dpi=300, bbox_inches='tight')
+plt.close()
+
+print(f"Figure saved as 'distribution.pdf'")
+print(f"Filtered out {len((improvement_data - 1) * 100) - len(improvement_percentages_display)} negative improvement cases")
+print(f"Remaining data points: {len(improvement_percentages_display)}")
