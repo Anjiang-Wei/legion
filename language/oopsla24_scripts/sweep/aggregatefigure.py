@@ -3,6 +3,23 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
+# Global font size configuration - matching distribution.py
+TITLE_FONTSIZE = 25
+LABEL_FONTSIZE = 30
+TICK_FONTSIZE = 25
+LEGEND_FONTSIZE = 25
+
+# Set global matplotlib parameters for consistent styling
+plt.rcParams.update({
+    'font.size': TICK_FONTSIZE,
+    'axes.titlesize': TITLE_FONTSIZE,
+    'axes.labelsize': LABEL_FONTSIZE,
+    'xtick.labelsize': TICK_FONTSIZE,
+    'ytick.labelsize': TICK_FONTSIZE,
+    'legend.fontsize': LEGEND_FONTSIZE,
+    'figure.titlesize': TITLE_FONTSIZE
+})
+
 # Load the CSV file
 file_path = 'all.csv'
 data = pd.read_csv(file_path)
@@ -49,8 +66,6 @@ geo_mean_ratioidx = improvement_percentages.groupby('ratioidx')[0].apply(lambda 
 # Function to plot the geometric means
 def plot_geometric_means(data, x_label, y_label='Improvement Percentage'):
     plt.figure(figsize=(12, 8))
-    tick_fontsize = 20
-    title_fontsize = 25
     print(x_label, data)
     if x_label == 'Machines':
         # Define the node values and map them to integers
@@ -63,53 +78,51 @@ def plot_geometric_means(data, x_label, y_label='Improvement Percentage'):
         # Plot the data
         plt.plot(*zip(*data), "--o", linewidth=3, markersize=20)  # Unzipping the data
         plt.ylim(0, 30)
-        plt.yticks(range(0, 31, 10), fontsize=tick_fontsize)
+        plt.yticks(range(0, 31, 10), fontsize=TICK_FONTSIZE)
 
-        # Set custom x-ticks
-        plt.xticks(range(len(nodes)), [f"{node} ({4*node})" for node in nodes], fontsize=tick_fontsize)
-        plt.xlabel('Number of Nodes (GPUs)', fontsize=title_fontsize)
+        # Set custom x-ticks - only show GPU numbers
+        gpu_counts = [4*node for node in nodes]
+        plt.xticks(range(len(nodes)), gpu_counts, fontsize=TICK_FONTSIZE)
+        plt.xlabel('Number of GPUs', fontsize=LABEL_FONTSIZE)
     elif x_label == 'Area':
         idx2position = {0: 10**6, 1: 10**7, 2: 10**8, 3: 2 * 10**8, 5: 4 * 10**8}
         data = [(idx2position[idx], (value - 1) * 100) for idx, value in data.items()]
 
         plt.plot(*zip(*data),  "--o", linewidth=3, markersize=20)
 
-        # Set the x-axis to logarithmic scale
+        # Use log scale to properly separate the first two points
         plt.xscale('log')
-
-        # Define the x-ticks and their labels
+        
+        # Define the x-ticks and their labels with better formatting
         xticks = [10**6, 10**7, 10**8, 2 * 10**8, 4 * 10**8]
-        xticklabels = ["$10^6$", "$10^7$", "$10^8$", "$2 \\times 10^8$", "$4 \\times 10^8$"]
+        xticklabels = ["1M", "10M", "100M", "200M", "400M"]
 
-        plt.xticks(xticks, xticklabels, fontsize=tick_fontsize)
-
-         # Disable minor ticks
-        plt.gca().xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
-        plt.gca().xaxis.set_minor_locator(matplotlib.ticker.NullLocator())
-
-        # Optional: Add vertical grid lines at major tick positions
-        # plt.grid(True, which='major', axis='x', linestyle='--')
+        plt.xticks(xticks, xticklabels, fontsize=TICK_FONTSIZE)
 
         plt.ylim(0, 40)
-        plt.yticks(range(0, 41, 10), fontsize=tick_fontsize)
-        plt.xlabel('Area of Iteration Space Per Node ($x * y / \\# nodes$)', fontsize=title_fontsize)
+        plt.yticks(range(0, 41, 10), fontsize=TICK_FONTSIZE)
+        plt.xlabel('Area of Iteration Space Per Node', fontsize=LABEL_FONTSIZE)
     
     elif x_label == 'Aspect Ratio':
         data = [(idx, (value - 1) * 100) for idx, value in data.items()]
         plt.plot(*zip(*data),  "--o", linewidth=3, markersize=20)
-        # plt.ylim(0, 50)
-        # plt.yticks(range(0, 51, 10), fontsize=tick_fontsize)
-        # plt.xticks(range(0, 10), ["1:1", "2:1", "4:1", "8:1", "16:1", "32:1", "64:1", "128:1", "256:1", "512:1"], fontsize=tick_fontsize)
         plt.ylim(0, 30)
-        plt.yticks(range(0, 31, 10), fontsize=tick_fontsize)
-        plt.xticks(range(0, 6), ["1:1", "1:2", "1:4", "1:8", "1:16", "1:32"], fontsize=tick_fontsize)
-        plt.xlabel('Aspect Ratio of Iteration Space ($x : y$)', fontsize=title_fontsize)
+        plt.yticks(range(0, 31, 10), fontsize=TICK_FONTSIZE)
+        plt.xticks(range(0, 6), ["1:1", "1:2", "1:4", "1:8", "1:16", "1:32"], fontsize=TICK_FONTSIZE)
+        plt.xlabel('Aspect Ratio of Iteration Space', fontsize=LABEL_FONTSIZE)
 
-    plt.title('Improvement Percentage w.r.t. ' + x_label, fontsize=title_fontsize)
-    plt.ylabel('Improvement Percentage (%)', fontsize=title_fontsize)
-    # plt.grid(True)
-    # plt.show()
-    plt.savefig(f'{x_label.split(" ")[0].lower()}_improvement.pdf')
+    # Remove title as requested
+    plt.ylabel('Performance Improvement (%)', fontsize=LABEL_FONTSIZE)
+    
+    # Add grid for better readability
+    plt.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+    
+    # Improve layout
+    plt.tight_layout()
+    
+    # Save with higher DPI for better quality
+    plt.savefig(f'{x_label.split(" ")[0].lower()}_improvement.pdf', dpi=300, bbox_inches='tight')
+    plt.close()
 
 # Plotting
 plot_geometric_means(geo_mean_node, 'Machines')
